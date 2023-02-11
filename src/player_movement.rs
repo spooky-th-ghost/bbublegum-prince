@@ -6,6 +6,72 @@ use crate::{Direction, MainCamera, OutsideForce};
 #[derive(Component)]
 pub struct Player;
 
+pub enum JumpStage {
+    Single,
+    Double,
+    Triple,
+}
+
+#[derive(Component)]
+pub struct Jump {
+    pub input_timer: Timer,
+    pub jump_stage: JumpStage,
+    pub jump_buffered: bool,
+}
+
+impl Jump {
+    fn reset_input(&mut self) {
+        self.jump_buffered = false;
+        self.input_timer.reset();
+    }
+
+    pub fn update(&mut self, time: Res<Time>) {
+        if self.jump_buffered {
+            self.input_timer.tick(time.delta());
+            if self.input_timer.finished() {
+                self.jump_buffered = false;
+            }
+        }
+    }
+
+    pub fn get_jump_force(&mut self) -> Option<f32> {
+        if self.jump_buffered {
+            self.reset_input();
+            match self.jump_stage {
+                JumpStage::Single => {
+                    self.jump_stage = JumpStage::Double;
+                    Some(10.0)
+                }
+                JumpStage::Double => {
+                    self.jump_stage = JumpStage::Triple;
+                    Some(15.0)
+                }
+                JumpStage::Triple => {
+                    self.jump_stage = JumpStage::Single;
+                    Some(20.0)
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn buffer_jump(&mut self) {
+        self.jump_buffered = true;
+        self.input_timer.reset();
+    }
+}
+
+impl Default for Jump {
+    fn default() -> Self {
+        Jump {
+            input_timer: Timer::from_seconds(0.4, TimerMode::Once),
+            jump_stage: JumpStage::Single,
+            jump_buffered: false,
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct PlayerSpeed {
     accel_timer: Timer,
@@ -131,7 +197,8 @@ impl Plugin for PlayerMovementPlugin {
         app.add_system(handle_player_acceleration)
             .add_system(set_player_direction)
             .add_system(handle_grounded)
-            .add_system(handle_jumping)
+            .add_system(buffer_jump)
+            .add_system(handle_jumping.after(buffer_jump))
             .add_system(rotate_to_direction.after(set_player_direction))
             .add_system(move_player_from_rotation.after(rotate_to_direction));
     }
@@ -269,16 +336,21 @@ pub fn handle_grounded(
     }
 }
 
-pub fn handle_jumping(
-    input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Velocity, &mut Grounded), With<Player>>,
-) {
-    let (mut velocity, mut grounded) = query.single_mut();
+pub fn buffer_jump(input: Res<Input<KeyCode>>, mut query: Query<&mut Jump, With<Player>>) {
+    let mut jump = query.single_mut();
+
+    if input.just_pressed(KeyCode::Space) {
+        jump.buffer_jump();
+    }
+}
+
+pub fn handle_jumping(mut query: Query<(&mut Velocity, &mut Grounded, &mut Jump), With<Player>>) {
+    let (mut velocity, mut grounded, mut jump) = query.single_mut();
 
     if grounded.can_jump() {
-        if input.pressed(KeyCode::Space) {
+        if let Some(force) = jump.get_jump_force() {
             grounded.jump();
-            velocity.linvel.y = 10.0;
+            velocity.linvel.y = force;
         }
     }
 }

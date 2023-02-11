@@ -91,6 +91,7 @@ pub fn spawn_world(
             angular_damping: 0.0,
         })
         .insert(Grounded::default())
+        .insert(Jump::default())
         .insert(Player)
         .with_children(|parent| {
             parent.spawn(PbrBundle {
