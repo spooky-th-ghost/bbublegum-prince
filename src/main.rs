@@ -41,6 +41,9 @@ impl Movement {
 pub struct Rot;
 
 #[derive(Component)]
+pub struct Wall;
+
+#[derive(Component)]
 pub struct WindZone(pub Vec3);
 
 impl WindZone {
@@ -100,6 +103,13 @@ pub fn spawn_world(
                 transform: Transform::from_xyz(0.0, 0.5, -0.5),
                 ..default()
             });
+
+            parent
+                .spawn(TransformBundle::default())
+                .insert(Collider::cylinder(0.1, 0.75))
+                .insert(PlayerWallSensor)
+                .insert(Sensor)
+                .insert(ActiveEvents::COLLISION_EVENTS);
         });
 
     // Light
@@ -119,17 +129,17 @@ pub fn spawn_world(
         .insert(Collider::cuboid(25.0, 0.5, 25.0))
         .insert(RigidBody::Fixed);
 
-    // // Block
-    // commands
-    //     .spawn(PbrBundle {
-    //         mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 5.0, 5.0))),
-    //         material: materials.add(Color::BLUE.into()),
-    //         transform: Transform::from_xyz(-5.0, 3.5, -5.0),
-    //         ..default()
-    //     })
-    //     .insert(Collider::cuboid(2.5, 2.5, 2.5))
-    //     .insert(Rot)
-    //     .insert(RigidBody::Fixed);
+    // Block
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 5.0, 5.0))),
+            material: materials.add(Color::BLUE.into()),
+            transform: Transform::from_xyz(-5.0, 3.5, -5.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(2.5, 2.5, 2.5))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
 
     // Wind Zone
     commands

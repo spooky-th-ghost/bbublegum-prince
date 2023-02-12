@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{MainCamera, Movement, OutsideForce};
+use crate::{MainCamera, Movement, OutsideForce, Wall};
 
 #[derive(Component)]
 pub struct Player;
@@ -144,6 +144,7 @@ pub enum GroundedState {
     Coyote,
     Rising,
     Falling,
+    WallSliding(Vec3),
 }
 
 #[derive(Component, Reflect)]
@@ -164,6 +165,13 @@ impl Grounded {
     pub fn is_grounded(&self) -> bool {
         match self.state {
             GroundedState::Grounded => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_wall_sliding(&self) -> bool {
+        match self.state {
+            GroundedState::WallSliding(_) => true,
             _ => false,
         }
     }
@@ -206,6 +214,10 @@ impl Default for Grounded {
         }
     }
 }
+
+#[derive(Component)]
+pub struct PlayerWallSensor;
+
 const PLAYER_ROTATION_SPEED: f32 = 10.0;
 
 pub struct PlayerMovementPlugin;
@@ -219,7 +231,9 @@ impl Plugin for PlayerMovementPlugin {
             .add_system(handle_jumping.after(buffer_jump))
             .add_system(rotate_to_direction.after(set_player_direction))
             .add_system(move_player_from_rotation.after(rotate_to_direction))
-            .add_system(handle_busy);
+            .add_system(handle_busy)
+            .add_system(handle_wall_sliding)
+            .add_system(detect_walls);
     }
 }
 
@@ -375,5 +389,86 @@ pub fn handle_busy(mut commands: Commands, time: Res<Time>, mut query: Query<(En
         if busy.finished() {
             commands.entity(entity).remove::<Busy>();
         }
+    }
+}
+
+enum WallDetectionStatus {
+    Hit(Entity),
+    NoHit,
+}
+
+pub fn detect_walls(
+    mut collision_events: EventReader<CollisionEvent>,
+    rapier_context: Res<RapierContext>,
+    mut player_query: Query<
+        (Entity, &Transform, &mut Grounded, &mut Velocity),
+        (With<Player>, Without<PlayerWallSensor>, Without<Wall>),
+    >,
+    wall_sensor_query: Query<Entity, (With<PlayerWallSensor>, Without<Player>, Without<Wall>)>,
+    wall_query: Query<(Entity, &Transform), With<Wall>>,
+) {
+    let (player_entity, player_transform, mut grounded, mut velocity) = player_query.single_mut();
+    let sensor_entity = wall_sensor_query.single();
+
+    let can_wallslide = grounded.is_airborne() && !grounded.is_wall_sliding();
+
+    for collision_event in collision_events.iter() {
+        match collision_event {
+            CollisionEvent::Started(e1, e2, _) => {
+                let wall_detection_status =
+                    if *e1 == sensor_entity && wall_query.contains(*e2) && can_wallslide {
+                        WallDetectionStatus::Hit(*e2)
+                    } else if *e2 == sensor_entity && wall_query.contains(*e1) && can_wallslide {
+                        WallDetectionStatus::Hit(*e1)
+                    } else {
+                        WallDetectionStatus::NoHit
+                    };
+
+                if let WallDetectionStatus::Hit(wall) = wall_detection_status {
+                    let (_, wall_transform) = wall_query.get(wall).unwrap();
+                    let ray_pos = player_transform.translation;
+                    let ray_dir = (wall_transform.translation - player_transform.translation)
+                        .normalize_or_zero();
+                    let max_distance = 2.0;
+                    let solid = true;
+                    let filter = QueryFilter::new()
+                        .exclude_sensors()
+                        .exclude_collider(player_entity);
+
+                    if let Some((_, intersection)) = rapier_context.cast_ray_and_get_normal(
+                        ray_pos,
+                        ray_dir,
+                        max_distance,
+                        solid,
+                        filter,
+                    ) {
+                        velocity.linvel.x = 0.0;
+                        velocity.linvel.z = 0.0;
+                        grounded.state = GroundedState::WallSliding(intersection.normal);
+                    }
+                }
+            }
+
+            CollisionEvent::Stopped(e1, e2, _) => {
+                if (*e1 == sensor_entity && wall_query.contains(*e2) && grounded.is_wall_sliding())
+                    || (*e2 == sensor_entity
+                        && wall_query.contains(*e1)
+                        && grounded.is_wall_sliding())
+                {
+                    grounded.state = GroundedState::Grounded;
+                };
+            }
+        }
+    }
+}
+
+pub fn handle_wall_sliding(mut query: Query<(&mut Velocity, &Grounded), With<Player>>) {
+    let (mut velocity, grounded) = query.single_mut();
+
+    match grounded.state {
+        GroundedState::WallSliding(_normal) => {
+            velocity.linvel.y = -2.0;
+        }
+        _ => (),
     }
 }
