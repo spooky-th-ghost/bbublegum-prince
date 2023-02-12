@@ -1,4 +1,4 @@
-use crate::{Grounded, MainCamera, Movement, OutsideForce, Player};
+use crate::{Drift, Grounded, MainCamera, Movement, OutsideForce, Player};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -58,19 +58,21 @@ impl Plugin for PlayerLocomotionPlugin {
         app.add_system(set_player_direction)
             .add_system(handle_player_acceleration.after(set_player_direction))
             .add_system(rotate_to_direction.after(set_player_direction))
-            .add_system(move_player_from_rotation.after(rotate_to_direction));
+            .add_system(apply_momentum.after(rotate_to_direction));
     }
 }
 
 pub fn set_player_direction(
     keyboard: Res<Input<KeyCode>>,
-    mut player_query: Query<&mut Movement, With<Player>>,
+    mut player_query: Query<(&mut Movement, &Grounded), With<Player>>,
     camera_query: Query<&Transform, With<MainCamera>>,
 ) {
     let camera_transform = camera_query.single();
-    let mut player_direction = player_query.single_mut();
+    let (mut movement, grounded) = player_query.single_mut();
 
-    player_direction.0 = get_direction_in_camera_space(camera_transform, keyboard);
+    if grounded.is_grounded() {
+        movement.0 = get_direction_in_camera_space(camera_transform, keyboard);
+    }
 }
 
 pub fn get_direction_in_camera_space(
@@ -143,11 +145,17 @@ pub fn handle_player_acceleration(
     }
 }
 
-pub fn move_player_from_rotation(
+pub fn apply_momentum(
     player_speed: Res<PlayerSpeed>,
-    mut query: Query<(&mut Velocity, &Transform, &Movement, Option<&OutsideForce>)>,
+    mut query: Query<(
+        &mut Velocity,
+        &Transform,
+        &Movement,
+        &Drift,
+        Option<&OutsideForce>,
+    )>,
 ) {
-    let (mut velocity, transform, direction, has_force) = query.single_mut();
+    let (mut velocity, transform, movement, drift, has_force) = query.single_mut();
 
     let mut speed_to_apply = Vec3::ZERO;
     let mut should_change_velocity: bool = false;
@@ -158,10 +166,15 @@ pub fn move_player_from_rotation(
         speed_to_apply.z += outside_force.0.z;
     }
 
-    if direction.is_moving() {
+    if movement.is_moving() {
         should_change_velocity = true;
         let forward = transform.forward();
         speed_to_apply += forward * player_speed.current();
+    }
+
+    if drift.has_drift() {
+        should_change_velocity = true;
+        speed_to_apply += drift.0;
     }
 
     if should_change_velocity {

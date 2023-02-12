@@ -38,6 +38,27 @@ impl Movement {
 }
 
 #[derive(Component)]
+pub struct Momentum(f32);
+
+impl Momentum {
+    pub fn has_momentum(&self) -> bool {
+        self.0 != 0.0
+    }
+
+    pub fn reset(&mut self) {
+        self.0 = 0.0;
+    }
+
+    pub fn set(&mut self, momentum: f32) {
+        self.0 = momentum;
+    }
+
+    pub fn add(&mut self, momentum: f32) {
+        self.0 += momentum;
+    }
+}
+
+#[derive(Component)]
 pub struct Rot;
 
 #[derive(Component)]
@@ -95,6 +116,7 @@ pub fn spawn_world(
         })
         .insert(Grounded::default())
         .insert(Jump::default())
+        .insert(Drift::default())
         .insert(Player)
         .with_children(|parent| {
             parent.spawn(PbrBundle {

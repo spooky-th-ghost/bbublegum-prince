@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{Movement, Player, Wall};
+use crate::{get_direction_in_camera_space, Landing, MainCamera, Player, Wall};
 
 pub enum JumpStage {
     Single,
@@ -17,6 +17,10 @@ pub struct Jump {
 }
 
 impl Jump {
+    fn reset_jump_state(&mut self) {
+        self.jump_stage = JumpStage::Single;
+    }
+
     fn reset_input(&mut self) {
         self.jump_buffered = false;
         self.input_timer.reset();
@@ -163,12 +167,49 @@ impl Plugin for PlayerJumpingPlugin {
             .add_system(handle_jumping.after(buffer_jump))
             .add_system(handle_wall_sliding)
             .add_system(detect_walls)
-            .add_system(handle_wall_jumping);
+            .add_system(handle_wall_jumping)
+            .add_system(aerial_drift)
+            .add_system(reset_jumps_after_landing);
     }
 }
 
-pub fn aerial_drift(mut query: Query<(&mut Velocity, &Movement, &Grounded), With<Player>>) {
-    let (mut velocity, movement, grounded) = query.single_mut();
+#[derive(Component, Default)]
+pub struct Drift(pub Vec3);
+
+impl Drift {
+    pub fn has_drift(&self) -> bool {
+        self.0 != Vec3::ZERO
+    }
+
+    pub fn reset(&mut self) {
+        self.0 = Vec3::ZERO;
+    }
+
+    pub fn set(&mut self, drift: Vec3) {
+        self.0 = drift;
+    }
+
+    pub fn add(&mut self, drift: Vec3) {
+        self.0 += drift;
+    }
+}
+
+pub fn aerial_drift(
+    keyboard: Res<Input<KeyCode>>,
+    time: Res<Time>,
+    mut query: Query<(&mut Drift, &Grounded), With<Player>>,
+
+    camera_query: Query<&Transform, With<MainCamera>>,
+) {
+    let (mut drift, grounded) = query.single_mut();
+    let camera_transform = camera_query.single();
+
+    if grounded.is_airborne() {
+        drift.add(
+            get_direction_in_camera_space(camera_transform, keyboard)
+                * (10.0 * time.delta_seconds()),
+        );
+    }
     // To enable this to truly work, we probably need to start storing forward momentum
     // seperate from velocity and then apply it at the end of the physics loop, we don't want
     // to cancel out our x/z velo when inputting a direction in the air, we want to maintain it
@@ -180,10 +221,11 @@ pub fn aerial_drift(mut query: Query<(&mut Velocity, &Movement, &Grounded), With
 }
 
 pub fn handle_grounded(
-    mut query: Query<(&Transform, &mut Grounded), With<Player>>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &Transform, &mut Grounded, &mut Drift), With<Player>>,
     rapier_context: Res<RapierContext>,
 ) {
-    let (transform, mut grounded) = query.single_mut();
+    let (entity, transform, mut grounded, mut drift) = query.single_mut();
 
     let is_grounded = grounded.is_grounded();
     let ray_pos = transform.translation;
@@ -197,6 +239,8 @@ pub fn handle_grounded(
     {
         if !is_grounded {
             grounded.land();
+            drift.reset();
+            commands.entity(entity).insert(Landing::new());
         }
     } else {
         if is_grounded {
@@ -221,6 +265,16 @@ pub fn handle_jumping(mut query: Query<(&mut Velocity, &mut Grounded, &mut Jump)
             grounded.jump();
             velocity.linvel.y = force;
         }
+    }
+}
+
+pub fn reset_jumps_after_landing(
+    mut query: Query<(&Grounded, &mut Jump), (With<Player>, Without<Landing>)>,
+) {
+    let Ok((grounded, mut jump)) = query.get_single_mut() else {return;};
+
+    if grounded.is_grounded() {
+        jump.reset_jump_state();
     }
 }
 

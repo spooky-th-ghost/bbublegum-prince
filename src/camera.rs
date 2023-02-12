@@ -5,6 +5,10 @@ use bevy_rapier3d::prelude::*;
 #[derive(Component)]
 pub struct MainCamera;
 
+pub enum CameraMode {
+    Normal,
+    Fixed { position: Vec3, look_target: Vec3 },
+}
 #[derive(Component)]
 pub struct CameraController {
     pub z_distance: f32,
@@ -13,6 +17,7 @@ pub struct CameraController {
     pub easing: f32,
     pub target_position: Vec3,
     pub player_position: Vec3,
+    pub mode: CameraMode,
     pub blocked_by_a_wall: bool,
 }
 
@@ -34,10 +39,18 @@ impl CameraController {
     }
 
     pub fn desired_easing_speed(&self) -> f32 {
-        if self.blocked_by_a_wall {
-            self.easing * 2.5
-        } else {
-            self.easing
+        match self.mode {
+            CameraMode::Normal => {
+                if self.blocked_by_a_wall {
+                    self.easing * 2.5
+                } else {
+                    self.easing
+                }
+            }
+            CameraMode::Fixed {
+                position: _,
+                look_target: _,
+            } => self.easing * 5.0,
         }
     }
 }
@@ -51,6 +64,11 @@ impl Default for CameraController {
             easing: 4.0,
             target_position: Vec3::ZERO,
             player_position: Vec3::ZERO,
+            // mode: CameraMode::Normal,
+            mode: CameraMode::Fixed {
+                position: Vec3::new(0.0, 30.0, -30.0),
+                look_target: Vec3::ZERO,
+            },
             blocked_by_a_wall: false,
         }
     }
@@ -103,13 +121,29 @@ fn lerp_to_camera_position(
     time: Res<Time>,
     mut camera_query: Query<(&mut Transform, &CameraController)>,
 ) {
-    for (mut transform, camera_controller) in &mut camera_query {
-        let lerped_position = transform.translation.lerp(
-            camera_controller.target_position,
-            time.delta_seconds() * camera_controller.desired_easing_speed(),
-        );
-        transform.translation = lerped_position;
-        transform.look_at(camera_controller.player_position, Vec3::Y);
+    for (mut transform, camera) in &mut camera_query {
+        match camera.mode {
+            CameraMode::Normal => {
+                let lerped_position = transform.translation.lerp(
+                    camera.target_position,
+                    time.delta_seconds() * camera.desired_easing_speed(),
+                );
+                transform.translation = lerped_position;
+                transform.look_at(camera.player_position, Vec3::Y);
+            }
+            CameraMode::Fixed {
+                position,
+                look_target,
+            } => {
+                let lerped_position = transform.translation.lerp(
+                    position,
+                    time.delta_seconds() * camera.desired_easing_speed(),
+                );
+
+                transform.translation = lerped_position;
+                transform.look_at(look_target, Vec3::Y);
+            }
+        }
     }
 }
 
@@ -122,9 +156,9 @@ fn rotate_camera(
     let mut camera = camera_query.single_mut();
     let movement = player_query.single();
 
-    if movement.0.x != 0.0 {
-        camera.angle += movement.0.x * 10.0 * time.delta_seconds();
-    }
+    // if movement.0.x != 0.0 {
+    //     camera.angle += movement.0.x * 10.0 * time.delta_seconds();
+    // }
 
     if keyboard.pressed(KeyCode::Q) {
         camera.angle -= 45.0 * time.delta_seconds();
