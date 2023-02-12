@@ -1,29 +1,7 @@
-use std::time::Duration;
-
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{MainCamera, Movement, OutsideForce, Wall};
-
-#[derive(Component)]
-pub struct Player;
-
-#[derive(Component)]
-pub struct Busy(Timer);
-
-impl Busy {
-    pub fn new(seconds: f32) -> Self {
-        Busy(Timer::from_seconds(seconds, TimerMode::Once))
-    }
-
-    pub fn tick(&mut self, duration: Duration) {
-        self.0.tick(duration);
-    }
-
-    pub fn finished(&self) -> bool {
-        self.0.finished()
-    }
-}
+use crate::{Movement, Player, Wall};
 
 pub enum JumpStage {
     Single,
@@ -92,53 +70,6 @@ impl Default for Jump {
             input_timer: Timer::from_seconds(0.4, TimerMode::Once),
             jump_stage: JumpStage::Single,
             jump_buffered: false,
-        }
-    }
-}
-
-#[derive(Resource)]
-pub struct PlayerSpeed {
-    accel_timer: Timer,
-    base_speed: f32,
-    current_speed: f32,
-    top_speed: f32,
-    min_speed: f32,
-    acceleration: f32,
-}
-
-impl PlayerSpeed {
-    pub fn reset(&mut self) {
-        self.current_speed = self.base_speed;
-        self.accel_timer.reset();
-    }
-
-    pub fn accelerate(&mut self, time: Res<Time>) {
-        self.accel_timer.tick(time.delta());
-        if self.accel_timer.finished() {
-            if self.current_speed + 0.3 <= self.top_speed {
-                self.current_speed = self.current_speed
-                    + (self.top_speed - self.current_speed)
-                        * (time.delta_seconds() * self.acceleration);
-            } else {
-                self.current_speed = self.top_speed;
-            }
-        }
-    }
-
-    pub fn current(&self) -> f32 {
-        self.current_speed
-    }
-}
-
-impl Default for PlayerSpeed {
-    fn default() -> Self {
-        PlayerSpeed {
-            accel_timer: Timer::from_seconds(1.5, TimerMode::Once),
-            base_speed: 7.5,
-            current_speed: 7.5,
-            top_speed: 15.0,
-            min_speed: -20.0,
-            acceleration: 2.0,
         }
     }
 }
@@ -223,90 +154,16 @@ impl Default for Grounded {
 #[derive(Component)]
 pub struct PlayerWallSensor;
 
-const PLAYER_ROTATION_SPEED: f32 = 10.0;
+pub struct PlayerJumpingPlugin;
 
-pub struct PlayerMovementPlugin;
-
-impl Plugin for PlayerMovementPlugin {
+impl Plugin for PlayerJumpingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(set_player_direction)
-            .add_system(handle_player_acceleration.after(set_player_direction))
-            .add_system(handle_grounded)
+        app.add_system(handle_grounded)
             .add_system(buffer_jump)
             .add_system(handle_jumping.after(buffer_jump))
-            .add_system(rotate_to_direction.after(set_player_direction))
-            .add_system(move_player_from_rotation.after(rotate_to_direction))
-            .add_system(handle_busy)
             .add_system(handle_wall_sliding)
             .add_system(detect_walls)
             .add_system(handle_wall_jumping);
-    }
-}
-
-pub fn set_player_direction(
-    keyboard: Res<Input<KeyCode>>,
-    mut player_query: Query<&mut Movement, With<Player>>,
-    camera_query: Query<&Transform, With<MainCamera>>,
-) {
-    let camera_transform = camera_query.single();
-    let mut player_direction = player_query.single_mut();
-
-    player_direction.0 = get_direction_in_camera_space(camera_transform, keyboard);
-}
-
-pub fn get_direction_in_camera_space(
-    camera_transform: &Transform,
-    keyboard: Res<Input<KeyCode>>,
-) -> Vec3 {
-    let mut x = 0.0;
-    let mut z = 0.0;
-
-    let mut forward = camera_transform.forward();
-    forward.y = 0.0;
-    forward = forward.normalize();
-
-    let mut right = camera_transform.right();
-    right.y = 0.0;
-    right = right.normalize();
-
-    if keyboard.pressed(KeyCode::W) {
-        z += 1.0;
-    }
-
-    if keyboard.pressed(KeyCode::S) {
-        z -= 1.0;
-    }
-
-    if keyboard.pressed(KeyCode::D) {
-        x += 1.0;
-    }
-
-    if keyboard.pressed(KeyCode::A) {
-        x -= 1.0;
-    }
-
-    let right_vec: Vec3 = x * right;
-    let forward_vec: Vec3 = z * forward;
-
-    (right_vec + forward_vec).normalize_or_zero()
-}
-
-pub fn rotate_to_direction(
-    time: Res<Time>,
-    mut query: Query<(&mut Transform, &Movement, &Grounded), With<Player>>,
-    mut rotation_target: Local<Transform>,
-) {
-    let (mut transform, direction, grounded) = query.single_mut();
-
-    rotation_target.translation = transform.translation;
-    let cur_position = rotation_target.translation;
-    let flat_velo_direction = Vec3::new(direction.0.x, 0.0, direction.0.z).normalize_or_zero();
-    if flat_velo_direction != Vec3::ZERO && grounded.is_grounded() {
-        rotation_target.look_at(cur_position + flat_velo_direction, Vec3::Y);
-        transform.rotation = transform.rotation.slerp(
-            rotation_target.rotation,
-            time.delta_seconds() * PLAYER_ROTATION_SPEED,
-        );
     }
 }
 
@@ -316,47 +173,10 @@ pub fn aerial_drift(mut query: Query<(&mut Velocity, &Movement, &Grounded), With
     // seperate from velocity and then apply it at the end of the physics loop, we don't want
     // to cancel out our x/z velo when inputting a direction in the air, we want to maintain it
     // and allow the player to influence it
-}
-
-pub fn handle_player_acceleration(
-    time: Res<Time>,
-    mut player_speed: ResMut<PlayerSpeed>,
-    query: Query<&Movement, With<Player>>,
-) {
-    let movement = query.single();
-
-    if movement.is_moving() {
-        player_speed.accelerate(time);
-    } else {
-        player_speed.reset();
-    }
-}
-
-pub fn move_player_from_rotation(
-    player_speed: Res<PlayerSpeed>,
-    mut query: Query<(&mut Velocity, &Transform, &Movement, Option<&OutsideForce>)>,
-) {
-    let (mut velocity, transform, direction, has_force) = query.single_mut();
-
-    let mut speed_to_apply = Vec3::ZERO;
-    let mut should_change_velocity: bool = false;
-
-    if let Some(outside_force) = has_force {
-        should_change_velocity = true;
-        speed_to_apply.x += outside_force.0.x;
-        speed_to_apply.z += outside_force.0.z;
-    }
-
-    if direction.is_moving() {
-        should_change_velocity = true;
-        let forward = transform.forward();
-        speed_to_apply += forward * player_speed.current();
-    }
-
-    if should_change_velocity {
-        velocity.linvel.x = speed_to_apply.x;
-        velocity.linvel.z = speed_to_apply.z;
-    }
+    //
+    // play around with having a version of this drift apply on the ground too, not sure how it
+    // will feel but it may make the roation based movement feel a little bit smoother, don't want
+    // to go full sm64
 }
 
 pub fn handle_grounded(
@@ -404,15 +224,6 @@ pub fn handle_jumping(mut query: Query<(&mut Velocity, &mut Grounded, &mut Jump)
     }
 }
 
-pub fn handle_busy(mut commands: Commands, time: Res<Time>, mut query: Query<(Entity, &mut Busy)>) {
-    for (entity, mut busy) in &mut query {
-        busy.tick(time.delta());
-        if busy.finished() {
-            commands.entity(entity).remove::<Busy>();
-        }
-    }
-}
-
 enum WallDetectionStatus {
     Hit(Entity),
     NoHit,
@@ -446,7 +257,6 @@ pub fn detect_walls(
                     };
 
                 if let WallDetectionStatus::Hit(wall) = wall_detection_status {
-                    println!("Found a wall");
                     let (_, wall_transform) = wall_query.get(wall).unwrap();
                     let ray_pos = player_transform.translation;
                     let ray_dir = (wall_transform.translation - player_transform.translation)

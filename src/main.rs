@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-pub mod player_movement;
-pub use player_movement::*;
+pub mod player;
+pub use player::*;
 
 pub mod camera;
 pub use camera::*;
@@ -14,7 +14,7 @@ fn main() {
         .add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierDebugRenderPlugin::default())
-        .add_plugin(PlayerMovementPlugin)
+        .add_plugin(PlayerPlugin)
         .add_plugin(CameraControlPlugin)
         .add_plugin(PhysiscsInteractablesPlugin)
         .register_type::<Grounded>()
