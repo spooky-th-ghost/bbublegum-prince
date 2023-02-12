@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -5,6 +7,23 @@ use crate::{MainCamera, Movement, OutsideForce};
 
 #[derive(Component)]
 pub struct Player;
+
+#[derive(Component)]
+pub struct Busy(Timer);
+
+impl Busy {
+    pub fn new(seconds: f32) -> Self {
+        Busy(Timer::from_seconds(seconds, TimerMode::Once))
+    }
+
+    pub fn tick(&mut self, duration: Duration) {
+        self.0.tick(duration);
+    }
+
+    pub fn finished(&self) -> bool {
+        self.0.finished()
+    }
+}
 
 pub enum JumpStage {
     Single,
@@ -102,7 +121,6 @@ impl PlayerSpeed {
     }
 
     pub fn current(&self) -> f32 {
-        println!("{:?}", self.current_speed);
         self.current_speed
     }
 }
@@ -200,7 +218,8 @@ impl Plugin for PlayerMovementPlugin {
             .add_system(buffer_jump)
             .add_system(handle_jumping.after(buffer_jump))
             .add_system(rotate_to_direction.after(set_player_direction))
-            .add_system(move_player_from_rotation.after(rotate_to_direction));
+            .add_system(move_player_from_rotation.after(rotate_to_direction))
+            .add_system(handle_busy);
     }
 }
 
@@ -346,6 +365,15 @@ pub fn handle_jumping(mut query: Query<(&mut Velocity, &mut Grounded, &mut Jump)
         if let Some(force) = jump.get_jump_force() {
             grounded.jump();
             velocity.linvel.y = force;
+        }
+    }
+}
+
+pub fn handle_busy(mut commands: Commands, time: Res<Time>, mut query: Query<(Entity, &mut Busy)>) {
+    for (entity, mut busy) in &mut query {
+        busy.tick(time.delta());
+        if busy.finished() {
+            commands.entity(entity).remove::<Busy>();
         }
     }
 }
