@@ -29,9 +29,9 @@ fn main() {
 }
 
 #[derive(Component, Default)]
-pub struct Direction(pub Vec3);
+pub struct Movement(pub Vec3);
 
-impl Direction {
+impl Movement {
     pub fn is_moving(&self) -> bool {
         self.0 != Vec3::ZERO
     }
@@ -85,7 +85,7 @@ pub fn spawn_world(
         .insert(Velocity::default())
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Collider::capsule_y(0.5, 0.5))
-        .insert(Direction::default())
+        .insert(Movement::default())
         .insert(Damping {
             linear_damping: 0.2,
             angular_damping: 0.0,
@@ -111,25 +111,25 @@ pub fn spawn_world(
     // Ground
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(200.0, 1.0, 200.0))),
+            mesh: meshes.add(Mesh::from(shape::Box::new(50.0, 1.0, 50.0))),
             material: materials.add(Color::GREEN.into()),
             transform: Transform::from_xyz(0.0, -1.0, 0.0),
             ..default()
         })
-        .insert(Collider::cuboid(100.0, 0.5, 100.0))
+        .insert(Collider::cuboid(25.0, 0.5, 25.0))
         .insert(RigidBody::Fixed);
 
-    // Block
-    commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 5.0, 5.0))),
-            material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_xyz(-5.0, 3.5, -5.0),
-            ..default()
-        })
-        .insert(Collider::cuboid(2.5, 2.5, 2.5))
-        .insert(Rot)
-        .insert(RigidBody::Fixed);
+    // // Block
+    // commands
+    //     .spawn(PbrBundle {
+    //         mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 5.0, 5.0))),
+    //         material: materials.add(Color::BLUE.into()),
+    //         transform: Transform::from_xyz(-5.0, 3.5, -5.0),
+    //         ..default()
+    //     })
+    //     .insert(Collider::cuboid(2.5, 2.5, 2.5))
+    //     .insert(Rot)
+    //     .insert(RigidBody::Fixed);
 
     // Wind Zone
     commands
@@ -148,7 +148,7 @@ pub fn handle_entering_wind_zones(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
     zone_query: Query<(Entity, &WindZone), With<Sensor>>,
-    movable_query: Query<(Entity, Option<&OutsideForce>), (With<Direction>, With<Collider>)>,
+    movable_query: Query<(Entity, Option<&OutsideForce>), (With<Movement>, With<Collider>)>,
 ) {
     for (zone_entity, windzone) in &zone_query {
         for (movable_entity, has_force) in &movable_query {

@@ -1,4 +1,4 @@
-use crate::Player;
+use crate::{Movement, Player};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::Velocity;
 
@@ -37,7 +37,7 @@ impl Default for CameraController {
     fn default() -> Self {
         CameraController {
             z_distance: 10.0,
-            y_distance: 10.0,
+            y_distance: 7.0,
             angle: 0.0,
             easing: 4.0,
             target_position: Vec3::ZERO,
@@ -89,9 +89,15 @@ fn lerp_to_camera_position(
 fn rotate_camera(
     time: Res<Time>,
     keyboard: Res<Input<KeyCode>>,
+    player_query: Query<&Movement>,
     mut camera_query: Query<&mut CameraController>,
 ) {
     let mut camera = camera_query.single_mut();
+    let movement = player_query.single();
+
+    if movement.0.x != 0.0 {
+        camera.angle += movement.0.x * 10.0 * time.delta_seconds();
+    }
 
     if keyboard.pressed(KeyCode::Q) {
         camera.angle -= 45.0 * time.delta_seconds();

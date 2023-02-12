@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{Direction, MainCamera, OutsideForce};
+use crate::{MainCamera, Movement, OutsideForce};
 
 #[derive(Component)]
 pub struct Player;
@@ -77,9 +77,9 @@ pub struct PlayerSpeed {
     accel_timer: Timer,
     base_speed: f32,
     current_speed: f32,
-    acceleration: f32,
     top_speed: f32,
-    previous_direction: Vec3,
+    min_speed: f32,
+    acceleration: f32,
 }
 
 impl PlayerSpeed {
@@ -90,12 +90,11 @@ impl PlayerSpeed {
 
     pub fn accelerate(&mut self, time: Res<Time>) {
         self.accel_timer.tick(time.delta());
-
         if self.accel_timer.finished() {
-            if self.top_speed - self.current_speed < 0.2 {
+            if self.current_speed + 0.3 <= self.top_speed {
                 self.current_speed = self.current_speed
-                    + (time.delta_seconds() * self.acceleration)
-                        * (self.top_speed - self.current_speed);
+                    + (self.top_speed - self.current_speed)
+                        * (time.delta_seconds() * self.acceleration);
             } else {
                 self.current_speed = self.top_speed;
             }
@@ -103,6 +102,7 @@ impl PlayerSpeed {
     }
 
     pub fn current(&self) -> f32 {
+        println!("{:?}", self.current_speed);
         self.current_speed
     }
 }
@@ -113,9 +113,9 @@ impl Default for PlayerSpeed {
             accel_timer: Timer::from_seconds(1.5, TimerMode::Once),
             base_speed: 7.5,
             current_speed: 7.5,
-            acceleration: 0.25,
             top_speed: 15.0,
-            previous_direction: Vec3::ZERO,
+            min_speed: -20.0,
+            acceleration: 2.0,
         }
     }
 }
@@ -194,8 +194,8 @@ pub struct PlayerMovementPlugin;
 
 impl Plugin for PlayerMovementPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(handle_player_acceleration)
-            .add_system(set_player_direction)
+        app.add_system(set_player_direction)
+            .add_system(handle_player_acceleration.after(set_player_direction))
             .add_system(handle_grounded)
             .add_system(buffer_jump)
             .add_system(handle_jumping.after(buffer_jump))
@@ -206,7 +206,7 @@ impl Plugin for PlayerMovementPlugin {
 
 pub fn set_player_direction(
     keyboard: Res<Input<KeyCode>>,
-    mut player_query: Query<&mut Direction, With<Player>>,
+    mut player_query: Query<&mut Movement, With<Player>>,
     camera_query: Query<&Transform, With<MainCamera>>,
 ) {
     let camera_transform = camera_query.single();
@@ -247,7 +247,7 @@ pub fn set_player_direction(
 
 pub fn rotate_to_direction(
     time: Res<Time>,
-    mut query: Query<(&mut Transform, &Direction), With<Player>>,
+    mut query: Query<(&mut Transform, &Movement), With<Player>>,
     mut rotation_target: Local<Transform>,
 ) {
     let (mut transform, direction) = query.single_mut();
@@ -267,24 +267,20 @@ pub fn rotate_to_direction(
 pub fn handle_player_acceleration(
     time: Res<Time>,
     mut player_speed: ResMut<PlayerSpeed>,
-    query: Query<&Direction, With<Player>>,
+    query: Query<&Movement, With<Player>>,
 ) {
-    let direction = query.single();
+    let movement = query.single();
 
-    if direction.0 != Vec3::ZERO {
-        if direction.0 == player_speed.previous_direction {
-            player_speed.accelerate(time)
-        }
+    if movement.is_moving() {
+        player_speed.accelerate(time);
     } else {
         player_speed.reset();
     }
-
-    player_speed.previous_direction = direction.0;
 }
 
 pub fn move_player_from_rotation(
     player_speed: Res<PlayerSpeed>,
-    mut query: Query<(&mut Velocity, &Transform, &Direction, Option<&OutsideForce>)>,
+    mut query: Query<(&mut Velocity, &Transform, &Movement, Option<&OutsideForce>)>,
 ) {
     let (mut velocity, transform, direction, has_force) = query.single_mut();
 
@@ -326,7 +322,6 @@ pub fn handle_grounded(
         rapier_context.cast_ray(ray_pos, ray_dir, max_distance, solid, filter)
     {
         if !is_grounded {
-            println!("Found some ground!");
             grounded.land();
         }
     } else {
