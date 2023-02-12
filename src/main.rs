@@ -141,6 +141,29 @@ pub fn spawn_world(
         .insert(Wall)
         .insert(RigidBody::Fixed);
 
+    // Wall jump blocks
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 40.0, 1.0))),
+            material: materials.add(Color::BLUE.into()),
+            transform: Transform::from_xyz(10.0, 20.0, 10.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(2.5, 20.0, 0.5))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 40.0, 1.0))),
+            material: materials.add(Color::BLUE.into()),
+            transform: Transform::from_xyz(10.0, 20.0, 15.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(2.5, 20.0, 0.5))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
+
     // Wind Zone
     commands
         .spawn(TransformBundle {

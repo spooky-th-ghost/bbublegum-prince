@@ -75,6 +75,11 @@ impl Jump {
         }
     }
 
+    pub fn get_wall_jump_force(&mut self) -> f32 {
+        self.reset_input();
+        15.0
+    }
+
     pub fn buffer_jump(&mut self) {
         self.jump_buffered = true;
         self.input_timer.reset();
@@ -233,7 +238,8 @@ impl Plugin for PlayerMovementPlugin {
             .add_system(move_player_from_rotation.after(rotate_to_direction))
             .add_system(handle_busy)
             .add_system(handle_wall_sliding)
-            .add_system(detect_walls);
+            .add_system(detect_walls)
+            .add_system(handle_wall_jumping);
     }
 }
 
@@ -245,6 +251,13 @@ pub fn set_player_direction(
     let camera_transform = camera_query.single();
     let mut player_direction = player_query.single_mut();
 
+    player_direction.0 = get_direction_in_camera_space(camera_transform, keyboard);
+}
+
+pub fn get_direction_in_camera_space(
+    camera_transform: &Transform,
+    keyboard: Res<Input<KeyCode>>,
+) -> Vec3 {
     let mut x = 0.0;
     let mut z = 0.0;
 
@@ -275,26 +288,34 @@ pub fn set_player_direction(
     let right_vec: Vec3 = x * right;
     let forward_vec: Vec3 = z * forward;
 
-    player_direction.0 = (right_vec + forward_vec).normalize_or_zero();
+    (right_vec + forward_vec).normalize_or_zero()
 }
 
 pub fn rotate_to_direction(
     time: Res<Time>,
-    mut query: Query<(&mut Transform, &Movement), With<Player>>,
+    mut query: Query<(&mut Transform, &Movement, &Grounded), With<Player>>,
     mut rotation_target: Local<Transform>,
 ) {
-    let (mut transform, direction) = query.single_mut();
+    let (mut transform, direction, grounded) = query.single_mut();
 
     rotation_target.translation = transform.translation;
     let cur_position = rotation_target.translation;
     let flat_velo_direction = Vec3::new(direction.0.x, 0.0, direction.0.z).normalize_or_zero();
-    if flat_velo_direction != Vec3::ZERO {
+    if flat_velo_direction != Vec3::ZERO && grounded.is_grounded() {
         rotation_target.look_at(cur_position + flat_velo_direction, Vec3::Y);
         transform.rotation = transform.rotation.slerp(
             rotation_target.rotation,
             time.delta_seconds() * PLAYER_ROTATION_SPEED,
         );
     }
+}
+
+pub fn aerial_drift(mut query: Query<(&mut Velocity, &Movement, &Grounded), With<Player>>) {
+    let (mut velocity, movement, grounded) = query.single_mut();
+    // To enable this to truly work, we probably need to start storing forward momentum
+    // seperate from velocity and then apply it at the end of the physics loop, we don't want
+    // to cancel out our x/z velo when inputting a direction in the air, we want to maintain it
+    // and allow the player to influence it
 }
 
 pub fn handle_player_acceleration(
@@ -425,11 +446,12 @@ pub fn detect_walls(
                     };
 
                 if let WallDetectionStatus::Hit(wall) = wall_detection_status {
+                    println!("Found a wall");
                     let (_, wall_transform) = wall_query.get(wall).unwrap();
                     let ray_pos = player_transform.translation;
                     let ray_dir = (wall_transform.translation - player_transform.translation)
                         .normalize_or_zero();
-                    let max_distance = 2.0;
+                    let max_distance = ray_pos.distance(wall_transform.translation);
                     let solid = true;
                     let filter = QueryFilter::new()
                         .exclude_sensors()
@@ -470,5 +492,21 @@ pub fn handle_wall_sliding(mut query: Query<(&mut Velocity, &Grounded), With<Pla
             velocity.linvel.y = -2.0;
         }
         _ => (),
+    }
+}
+
+pub fn handle_wall_jumping(
+    input: Res<Input<KeyCode>>,
+    mut query: Query<(&mut Transform, &mut Velocity, &mut Grounded, &mut Jump), With<Player>>,
+) {
+    let (mut transform, mut velocity, mut grounded, mut jump) = query.single_mut();
+
+    if let GroundedState::WallSliding(wall_normal) = grounded.state {
+        if input.just_pressed(KeyCode::Space) {
+            let position = transform.translation;
+            transform.look_at(position + wall_normal, Vec3::Y);
+            velocity.linvel = (Vec3::Y + wall_normal) * jump.get_wall_jump_force();
+            grounded.state = GroundedState::Rising;
+        }
     }
 }
