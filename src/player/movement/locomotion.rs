@@ -1,4 +1,4 @@
-use crate::{Drift, Grounded, MainCamera, Movement, OutsideForce, Player};
+use crate::{Drift, Grounded, Landing, MainCamera, Momentum, Movement, OutsideForce, Player};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -114,48 +114,57 @@ pub fn get_direction_in_camera_space(
 
 pub fn rotate_to_direction(
     time: Res<Time>,
-    mut query: Query<(&mut Transform, &Movement, &Grounded), With<Player>>,
+    mut query: Query<(&mut Transform, &Movement, &Grounded, Option<&Landing>), With<Player>>,
     mut rotation_target: Local<Transform>,
 ) {
-    let (mut transform, direction, grounded) = query.single_mut();
+    let (mut transform, direction, grounded, is_landing) = query.single_mut();
 
     rotation_target.translation = transform.translation;
     let cur_position = rotation_target.translation;
     let flat_velo_direction = Vec3::new(direction.0.x, 0.0, direction.0.z).normalize_or_zero();
     if flat_velo_direction != Vec3::ZERO && grounded.is_grounded() {
         rotation_target.look_at(cur_position + flat_velo_direction, Vec3::Y);
-        transform.rotation = transform.rotation.slerp(
-            rotation_target.rotation,
-            time.delta_seconds() * PLAYER_ROTATION_SPEED,
-        );
+        let turn_speed = if is_landing.is_some() {
+            PLAYER_ROTATION_SPEED * 2.0
+        } else {
+            PLAYER_ROTATION_SPEED
+        };
+        transform.rotation = transform
+            .rotation
+            .slerp(rotation_target.rotation, time.delta_seconds() * turn_speed);
     }
 }
 
 pub fn handle_player_acceleration(
     time: Res<Time>,
     mut player_speed: ResMut<PlayerSpeed>,
-    query: Query<&Movement, With<Player>>,
+    mut query: Query<(&mut Momentum, &Movement, &Grounded), With<Player>>,
 ) {
-    let movement = query.single();
+    let (mut momentum, movement, grounded) = query.single_mut();
 
     if movement.is_moving() {
-        player_speed.accelerate(time);
+        if grounded.is_grounded() {
+            player_speed.accelerate(time);
+            momentum.set(player_speed.current_speed);
+        }
     } else {
-        player_speed.reset();
+        if grounded.is_grounded() {
+            momentum.reset();
+            player_speed.reset();
+        }
     }
 }
 
 pub fn apply_momentum(
-    player_speed: Res<PlayerSpeed>,
     mut query: Query<(
         &mut Velocity,
         &Transform,
-        &Movement,
+        &Momentum,
         &Drift,
         Option<&OutsideForce>,
     )>,
 ) {
-    let (mut velocity, transform, movement, drift, has_force) = query.single_mut();
+    let (mut velocity, transform, momentum, drift, has_force) = query.single_mut();
 
     let mut speed_to_apply = Vec3::ZERO;
     let mut should_change_velocity: bool = false;
@@ -166,10 +175,10 @@ pub fn apply_momentum(
         speed_to_apply.z += outside_force.0.z;
     }
 
-    if movement.is_moving() {
+    if momentum.has_momentum() {
         should_change_velocity = true;
         let forward = transform.forward();
-        speed_to_apply += forward * player_speed.current();
+        speed_to_apply += forward * momentum.get();
     }
 
     if drift.has_drift() {
