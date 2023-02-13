@@ -93,7 +93,6 @@ pub fn get_direction_in_camera_space(
     right = right.normalize();
 
     if action.pressed(PlayerAction::Up) {
-        println!("Up pressed");
         z += 1.0;
     }
 

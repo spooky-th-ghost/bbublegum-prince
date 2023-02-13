@@ -159,6 +159,49 @@ pub fn spawn_world(
         .insert(Collider::cuboid(25.0, 0.5, 25.0))
         .insert(RigidBody::Fixed);
 
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(50.0, 50.0, 1.0))),
+            material: materials.add(Color::PURPLE.into()),
+            transform: Transform::from_xyz(0.0, 24.5, 25.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(25.0, 25.0, 0.5))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(50.0, 50.0, 1.0))),
+            material: materials.add(Color::PURPLE.into()),
+            transform: Transform::from_xyz(0.0, 24.5, -25.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(25.0, 25.0, 0.5))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 50.0, 50.0))),
+            material: materials.add(Color::PURPLE.into()),
+            transform: Transform::from_xyz(25.0, 24.5, 0.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(0.5, 25.0, 25.0))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 50.0, 50.0))),
+            material: materials.add(Color::PURPLE.into()),
+            transform: Transform::from_xyz(-25.0, 24.5, 0.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(0.5, 25.0, 25.0))
+        .insert(Wall)
+        .insert(RigidBody::Fixed);
     // Block
     commands
         .spawn(PbrBundle {
@@ -174,37 +217,37 @@ pub fn spawn_world(
     // Wall jump blocks
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 40.0, 1.0))),
+            mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 40.0, 5.0))),
             material: materials.add(Color::BLUE.into()),
             transform: Transform::from_xyz(10.0, 20.0, 10.0),
             ..default()
         })
-        .insert(Collider::cuboid(2.5, 20.0, 0.5))
+        .insert(Collider::cuboid(0.5, 20.0, 2.5))
         .insert(Wall)
         .insert(RigidBody::Fixed);
 
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 40.0, 1.0))),
+            mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 40.0, 5.0))),
             material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_xyz(10.0, 20.0, 15.0),
+            transform: Transform::from_xyz(15.0, 20.0, 10.0),
             ..default()
         })
-        .insert(Collider::cuboid(2.5, 20.0, 0.5))
+        .insert(Collider::cuboid(0.5, 20.0, 2.5))
         .insert(Wall)
         .insert(RigidBody::Fixed);
 
-    // Wind Zone
-    commands
-        .spawn(TransformBundle {
-            local: Transform::from_xyz(-2.0, 1.5, -6.0),
-            ..default()
-        })
-        .insert(Collider::cuboid(2.5, 2.5, 2.5))
-        .insert(Sensor)
-        .insert(ActiveEvents::COLLISION_EVENTS)
-        .insert(WindZone(Vec3::new(4.0, 0.0, 4.0)))
-        .insert(RigidBody::Fixed);
+    // // Wind Zone
+    // commands
+    //     .spawn(TransformBundle {
+    //         local: Transform::from_xyz(-2.0, 1.5, -6.0),
+    //         ..default()
+    //     })
+    //     .insert(Collider::cuboid(2.5, 2.5, 2.5))
+    //     .insert(Sensor)
+    //     .insert(ActiveEvents::COLLISION_EVENTS)
+    //     .insert(WindZone(Vec3::new(4.0, 0.0, 4.0)))
+    //     .insert(RigidBody::Fixed);
 }
 
 pub fn handle_entering_wind_zones(

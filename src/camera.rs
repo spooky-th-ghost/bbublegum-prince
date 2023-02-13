@@ -66,7 +66,7 @@ impl Default for CameraController {
             player_position: Vec3::ZERO,
             // mode: CameraMode::Normal,
             mode: CameraMode::Fixed {
-                position: Vec3::new(0.0, 30.0, -30.0),
+                position: Vec3::new(0.0, 40.0, -23.0),
                 look_target: Vec3::ZERO,
             },
             blocked_by_a_wall: false,
@@ -80,7 +80,25 @@ impl Plugin for CameraControlPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(update_camera_target_position)
             .add_system(lerp_to_camera_position.after(update_camera_target_position))
-            .add_system(rotate_camera);
+            .add_system(rotate_camera)
+            .add_system(debug_change_camera_mode);
+    }
+}
+
+fn debug_change_camera_mode(
+    input: Res<Input<KeyCode>>,
+    mut camera_query: Query<&mut CameraController>,
+) {
+    let mut camera = camera_query.single_mut();
+    if input.just_pressed(KeyCode::Z) {
+        if let CameraMode::Normal = camera.mode {
+            camera.mode = CameraMode::Fixed {
+                position: Vec3::new(0.0, 30.0, -20.0),
+                look_target: Vec3::ZERO,
+            };
+        } else {
+            camera.mode = CameraMode::Normal;
+        }
     }
 }
 fn update_camera_target_position(
