@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
 
-use crate::{get_direction_in_camera_space, Landing, MainCamera, Player, Wall};
+use crate::{get_direction_in_camera_space, Landing, MainCamera, Player, PlayerAction, Wall};
 
 pub enum JumpStage {
     Single,
@@ -195,29 +196,19 @@ impl Drift {
 }
 
 pub fn aerial_drift(
-    keyboard: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut query: Query<(&mut Drift, &Grounded), With<Player>>,
+    mut query: Query<(&mut Drift, &Grounded, &ActionState<PlayerAction>), With<Player>>,
 
     camera_query: Query<&Transform, With<MainCamera>>,
 ) {
-    let (mut drift, grounded) = query.single_mut();
+    let (mut drift, grounded, action) = query.single_mut();
     let camera_transform = camera_query.single();
 
     if grounded.is_airborne() {
         drift.add(
-            get_direction_in_camera_space(camera_transform, keyboard)
-                * (10.0 * time.delta_seconds()),
+            get_direction_in_camera_space(camera_transform, action) * (10.0 * time.delta_seconds()),
         );
     }
-    // To enable this to truly work, we probably need to start storing forward momentum
-    // seperate from velocity and then apply it at the end of the physics loop, we don't want
-    // to cancel out our x/z velo when inputting a direction in the air, we want to maintain it
-    // and allow the player to influence it
-    //
-    // play around with having a version of this drift apply on the ground too, not sure how it
-    // will feel but it may make the roation based movement feel a little bit smoother, don't want
-    // to go full sm64
 }
 
 pub fn handle_grounded(

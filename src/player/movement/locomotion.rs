@@ -1,6 +1,9 @@
-use crate::{Drift, Grounded, Landing, MainCamera, Momentum, Movement, OutsideForce, Player};
+use crate::{
+    Drift, Grounded, Landing, MainCamera, Momentum, Movement, OutsideForce, Player, PlayerAction,
+};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
 
 const PLAYER_ROTATION_SPEED: f32 = 10.0;
 
@@ -63,21 +66,20 @@ impl Plugin for PlayerLocomotionPlugin {
 }
 
 pub fn set_player_direction(
-    keyboard: Res<Input<KeyCode>>,
-    mut player_query: Query<(&mut Movement, &Grounded), With<Player>>,
+    mut player_query: Query<(&mut Movement, &Grounded, &ActionState<PlayerAction>), With<Player>>,
     camera_query: Query<&Transform, With<MainCamera>>,
 ) {
     let camera_transform = camera_query.single();
-    let (mut movement, grounded) = player_query.single_mut();
+    let (mut movement, grounded, action) = player_query.single_mut();
 
     if grounded.is_grounded() {
-        movement.0 = get_direction_in_camera_space(camera_transform, keyboard);
+        movement.0 = get_direction_in_camera_space(camera_transform, action);
     }
 }
 
 pub fn get_direction_in_camera_space(
     camera_transform: &Transform,
-    keyboard: Res<Input<KeyCode>>,
+    action: &ActionState<PlayerAction>,
 ) -> Vec3 {
     let mut x = 0.0;
     let mut z = 0.0;
@@ -90,19 +92,20 @@ pub fn get_direction_in_camera_space(
     right.y = 0.0;
     right = right.normalize();
 
-    if keyboard.pressed(KeyCode::W) {
+    if action.pressed(PlayerAction::Up) {
+        println!("Up pressed");
         z += 1.0;
     }
 
-    if keyboard.pressed(KeyCode::S) {
+    if action.pressed(PlayerAction::Down) {
         z -= 1.0;
     }
 
-    if keyboard.pressed(KeyCode::D) {
+    if action.pressed(PlayerAction::Right) {
         x += 1.0;
     }
 
-    if keyboard.pressed(KeyCode::A) {
+    if action.pressed(PlayerAction::Left) {
         x -= 1.0;
     }
 

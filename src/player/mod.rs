@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 pub mod movement;
 pub use movement::*;
+pub mod inputs;
+pub use inputs::*;
 
 pub struct PlayerPlugin;
 

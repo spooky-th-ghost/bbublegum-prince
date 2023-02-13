@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 pub mod player;
+use leafwing_input_manager::prelude::InputManagerPlugin;
 pub use player::*;
 
 pub mod camera;
@@ -14,6 +15,7 @@ fn main() {
         .add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(InputManagerPlugin::<PlayerAction>::default())
         .add_plugin(PlayerPlugin)
         .add_plugin(CameraControlPlugin)
         .add_plugin(PhysiscsInteractablesPlugin)
@@ -122,6 +124,7 @@ pub fn spawn_world(
         .insert(Jump::default())
         .insert(Drift::default())
         .insert(Momentum::default())
+        .insert(InputListenerBundle::input_map())
         .insert(Player)
         .with_children(|parent| {
             parent.spawn(PbrBundle {
