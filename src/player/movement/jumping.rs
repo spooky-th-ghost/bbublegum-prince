@@ -13,23 +13,28 @@ pub struct PlayerJumpingPlugin;
 
 impl Plugin for PlayerJumpingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(handle_grounded)
+        app.register_type::<Jump>()
+            .add_system(handle_grounded)
             .add_system(buffer_jump)
             .add_system(handle_jumping.after(buffer_jump))
             .add_system(detect_walls)
             .add_system(handle_wall_jumping.before(apply_momentum))
             .add_system(aerial_drift)
-            .add_system(reset_jumps_after_landing);
+            .add_system(reset_jumps_after_landing)
+            .add_system(handle_jump_buffer);
     }
 }
 
+#[derive(Default, Reflect)]
 pub enum JumpStage {
+    #[default]
     Single,
     Double,
     Triple,
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct Jump {
     pub input_timer: Timer,
     pub jump_stage: JumpStage,
@@ -37,7 +42,12 @@ pub struct Jump {
 }
 
 impl Jump {
-    fn reset_jump_state(&mut self) {
+    fn reset(&mut self) {
+        self.reset_jump_stage();
+        self.reset_input();
+    }
+
+    fn reset_jump_stage(&mut self) {
         self.jump_stage = JumpStage::Single;
     }
 
@@ -46,11 +56,11 @@ impl Jump {
         self.input_timer.reset();
     }
 
-    pub fn update(&mut self, time: Res<Time>) {
+    pub fn update(&mut self, delta: std::time::Duration) {
         if self.jump_buffered {
-            self.input_timer.tick(time.delta());
+            self.input_timer.tick(delta);
             if self.input_timer.finished() {
-                self.jump_buffered = false;
+                self.reset();
             }
         }
     }
@@ -91,7 +101,7 @@ impl Jump {
 impl Default for Jump {
     fn default() -> Self {
         Jump {
-            input_timer: Timer::from_seconds(0.4, TimerMode::Once),
+            input_timer: Timer::from_seconds(0.2, TimerMode::Once),
             jump_stage: JumpStage::Single,
             jump_buffered: false,
         }
@@ -213,6 +223,11 @@ impl Drift {
     }
 }
 
+pub fn handle_jump_buffer(time: Res<Time>, mut query: Query<&mut Jump>) {
+    for mut jump in &mut query {
+        jump.update(time.delta());
+    }
+}
 pub fn aerial_drift(
     time: Res<Time>,
     mut query: Query<(&mut Drift, &Grounded, &ActionState<PlayerAction>), With<Player>>,
@@ -283,7 +298,7 @@ pub fn reset_jumps_after_landing(
     let Ok((grounded, mut jump)) = query.get_single_mut() else {return;};
 
     if grounded.is_grounded() {
-        jump.reset_jump_state();
+        jump.reset_jump_stage();
     }
 }
 
@@ -343,7 +358,6 @@ pub fn detect_walls(
                         solid,
                         filter,
                     ) {
-                        println!("Wall Normal: {:?}", intersection.normal);
                         velocity.linvel.x = 0.0;
                         velocity.linvel.z = 0.0;
                         grounded.state = GroundedState::WallSliding(intersection.normal);

@@ -33,7 +33,7 @@ pub struct Landing(Timer);
 
 impl Landing {
     pub fn new() -> Self {
-        Landing(Timer::from_seconds(0.5, TimerMode::Once))
+        Landing(Timer::from_seconds(0.15, TimerMode::Once))
     }
 
     pub fn tick(&mut self, duration: Duration) {
