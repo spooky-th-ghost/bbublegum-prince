@@ -5,6 +5,17 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
+pub struct PlayerLocomotionPlugin;
+
+impl Plugin for PlayerLocomotionPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_system(set_player_direction)
+            .add_system(handle_player_acceleration.after(set_player_direction))
+            .add_system(rotate_to_direction.after(set_player_direction))
+            .add_system(apply_momentum.after(rotate_to_direction));
+    }
+}
+
 const PLAYER_ROTATION_SPEED: f32 = 10.0;
 
 #[derive(Resource)]
@@ -54,17 +65,6 @@ impl Default for PlayerSpeed {
     }
 }
 
-pub struct PlayerLocomotionPlugin;
-
-impl Plugin for PlayerLocomotionPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system(set_player_direction)
-            .add_system(handle_player_acceleration.after(set_player_direction))
-            .add_system(rotate_to_direction.after(set_player_direction))
-            .add_system(apply_momentum.after(rotate_to_direction));
-    }
-}
-
 pub fn set_player_direction(
     mut player_query: Query<(&mut Movement, &Grounded, &ActionState<PlayerAction>), With<Player>>,
     camera_query: Query<&Transform, With<MainCamera>>,
@@ -74,6 +74,10 @@ pub fn set_player_direction(
 
     if grounded.is_grounded() {
         movement.0 = get_direction_in_camera_space(camera_transform, action);
+    } else {
+        if movement.is_moving() {
+            movement.0 = Vec3::ZERO;
+        }
     }
 }
 

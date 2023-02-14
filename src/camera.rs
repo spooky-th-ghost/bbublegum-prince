@@ -1,4 +1,4 @@
-use crate::{Movement, Player};
+use crate::{Momentum, Movement, Player};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -22,16 +22,16 @@ pub struct CameraController {
 }
 
 impl CameraController {
-    pub fn desired_y_height(&self, velocity_magnitude: f32) -> f32 {
-        if velocity_magnitude < 3.0 {
+    pub fn desired_y_height(&self, momentum: f32) -> f32 {
+        if momentum < 5.0 {
             self.y_distance / 2.0
         } else {
             self.y_distance
         }
     }
 
-    pub fn desired_z_distance(&self, velocity_magnitude: f32) -> f32 {
-        if velocity_magnitude < 55.0 {
+    pub fn desired_z_distance(&self, momentum: f32) -> f32 {
+        if momentum < 10.0 {
             self.z_distance
         } else {
             self.z_distance * 1.5
@@ -104,10 +104,10 @@ fn debug_change_camera_mode(
 fn update_camera_target_position(
     rapier_context: Res<RapierContext>,
     mut camera_query: Query<&mut CameraController>,
-    player_query: Query<(Entity, &Transform, &Velocity), With<Player>>,
+    player_query: Query<(Entity, &Transform, &Momentum), With<Player>>,
 ) {
     let mut camera = camera_query.single_mut();
-    let (player_entity, player_transform, player_velocity) = player_query.single();
+    let (player_entity, player_transform, player_momentum) = player_query.single();
 
     let mut starting_transform = player_transform.clone();
     starting_transform.rotation = Quat::default();
@@ -115,8 +115,8 @@ fn update_camera_target_position(
     let dir = starting_transform.forward().normalize();
     camera.player_position = player_transform.translation;
     let mut desired_position = starting_transform.translation
-        + (dir * camera.desired_z_distance(player_velocity.linvel.length_squared()))
-        + (Vec3::Y * camera.desired_y_height(player_velocity.linvel.length_squared()));
+        + (dir * camera.desired_z_distance(player_momentum.get()))
+        + (Vec3::Y * camera.desired_y_height(player_momentum.get()));
 
     let ray_pos = player_transform.translation;
     let ray_dir = (desired_position - player_transform.translation).normalize_or_zero();

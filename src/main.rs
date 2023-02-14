@@ -125,6 +125,10 @@ pub fn spawn_world(
         .insert(Drift::default())
         .insert(Momentum::default())
         .insert(InputListenerBundle::input_map())
+        .insert(Friction {
+            coefficient: 1.0,
+            combine_rule: CoefficientCombineRule::Min,
+        })
         .insert(Player)
         .with_children(|parent| {
             parent.spawn(PbrBundle {

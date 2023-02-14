@@ -1,8 +1,27 @@
+use std::fmt::Formatter;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-use crate::{get_direction_in_camera_space, Landing, MainCamera, Player, PlayerAction, Wall};
+use crate::{
+    apply_momentum, get_direction_in_camera_space, Landing, MainCamera, Momentum, Player,
+    PlayerAction, Wall,
+};
+
+pub struct PlayerJumpingPlugin;
+
+impl Plugin for PlayerJumpingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_system(handle_grounded)
+            .add_system(buffer_jump)
+            .add_system(handle_jumping.after(buffer_jump))
+            .add_system(detect_walls)
+            .add_system(handle_wall_jumping.before(apply_momentum))
+            .add_system(aerial_drift)
+            .add_system(reset_jumps_after_landing);
+    }
+}
 
 pub enum JumpStage {
     Single,
@@ -88,6 +107,20 @@ pub enum GroundedState {
     WallSliding(Vec3),
 }
 
+impl std::fmt::Display for GroundedState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use GroundedState::*;
+        match self {
+            Grounded => write!(f, "Grounded")?,
+            Coyote => write!(f, "Coyote")?,
+            Rising => write!(f, "Rising")?,
+            Falling => write!(f, "Falling")?,
+            WallSliding(_) => write!(f, "WallSliding")?,
+        }
+        Ok(())
+    }
+}
+
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct Grounded {
@@ -159,21 +192,6 @@ impl Default for Grounded {
 #[derive(Component)]
 pub struct PlayerWallSensor;
 
-pub struct PlayerJumpingPlugin;
-
-impl Plugin for PlayerJumpingPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system(handle_grounded)
-            .add_system(buffer_jump)
-            .add_system(handle_jumping.after(buffer_jump))
-            .add_system(handle_wall_sliding)
-            .add_system(detect_walls)
-            .add_system(handle_wall_jumping)
-            .add_system(aerial_drift)
-            .add_system(reset_jumps_after_landing);
-    }
-}
-
 #[derive(Component, Default)]
 pub struct Drift(pub Vec3);
 
@@ -221,7 +239,7 @@ pub fn handle_grounded(
     let is_grounded = grounded.is_grounded();
     let ray_pos = transform.translation;
     let ray_dir = Vec3::Y * -1.0;
-    let max_distance = 1.2;
+    let max_distance = 1.1;
     let solid = true;
     let filter = QueryFilter::exclude_dynamic().exclude_sensors();
 
@@ -278,16 +296,22 @@ pub fn detect_walls(
     mut collision_events: EventReader<CollisionEvent>,
     rapier_context: Res<RapierContext>,
     mut player_query: Query<
-        (Entity, &Transform, &mut Grounded, &mut Velocity),
+        (
+            Entity,
+            &Transform,
+            &mut Grounded,
+            &mut Velocity,
+            &mut Friction,
+        ),
         (With<Player>, Without<PlayerWallSensor>, Without<Wall>),
     >,
     wall_sensor_query: Query<Entity, (With<PlayerWallSensor>, Without<Player>, Without<Wall>)>,
     wall_query: Query<(Entity, &Transform), With<Wall>>,
 ) {
-    let (player_entity, player_transform, mut grounded, mut velocity) = player_query.single_mut();
+    let (player_entity, player_transform, mut grounded, mut velocity, mut friction) =
+        player_query.single_mut();
     let sensor_entity = wall_sensor_query.single();
-
-    let can_wallslide = grounded.is_airborne() && !grounded.is_wall_sliding();
+    let can_wallslide = grounded.is_airborne() && !grounded.is_wall_sliding(); // && velocity.linvel.y < 0.0;
 
     for collision_event in collision_events.iter() {
         match collision_event {
@@ -319,20 +343,21 @@ pub fn detect_walls(
                         solid,
                         filter,
                     ) {
+                        println!("Wall Normal: {:?}", intersection.normal);
                         velocity.linvel.x = 0.0;
                         velocity.linvel.z = 0.0;
                         grounded.state = GroundedState::WallSliding(intersection.normal);
+                        friction.coefficient = 0.0;
                     }
                 }
             }
 
             CollisionEvent::Stopped(e1, e2, _) => {
-                if (*e1 == sensor_entity && wall_query.contains(*e2) && grounded.is_wall_sliding())
-                    || (*e2 == sensor_entity
-                        && wall_query.contains(*e1)
-                        && grounded.is_wall_sliding())
+                if (*e1 == sensor_entity && wall_query.contains(*e2))
+                    || (*e2 == sensor_entity && wall_query.contains(*e1))
                 {
                     grounded.state = GroundedState::Grounded;
+                    friction.coefficient = 1.0;
                 };
             }
         }
@@ -352,15 +377,25 @@ pub fn handle_wall_sliding(mut query: Query<(&mut Velocity, &Grounded), With<Pla
 
 pub fn handle_wall_jumping(
     input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Transform, &mut Velocity, &mut Grounded, &mut Jump), With<Player>>,
+    mut query: Query<
+        (
+            &mut Transform,
+            &mut Velocity,
+            &mut Grounded,
+            &mut Momentum,
+            &mut Jump,
+        ),
+        With<Player>,
+    >,
 ) {
-    let (mut transform, mut velocity, mut grounded, mut jump) = query.single_mut();
+    let (mut transform, mut velocity, mut grounded, mut momentum, mut jump) = query.single_mut();
 
     if let GroundedState::WallSliding(wall_normal) = grounded.state {
         if input.just_pressed(KeyCode::Space) {
             let position = transform.translation;
             transform.look_at(position + wall_normal, Vec3::Y);
-            velocity.linvel = (Vec3::Y + wall_normal) * jump.get_wall_jump_force();
+            momentum.set(jump.get_wall_jump_force());
+            velocity.linvel = Vec3::Y * jump.get_wall_jump_force();
             grounded.state = GroundedState::Rising;
         }
     }
