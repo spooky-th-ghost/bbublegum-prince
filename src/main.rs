@@ -28,7 +28,6 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(CameraControlPlugin)
         .add_plugin(PhysiscsInteractablesPlugin)
-        .register_type::<Grounded>()
         .insert_resource(RapierConfiguration {
             gravity: Vec3::Y * -30.0,
             ..default()

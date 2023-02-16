@@ -34,13 +34,12 @@ impl PlayerSpeed {
         self.accel_timer.reset();
     }
 
-    pub fn accelerate(&mut self, time: Res<Time>) {
-        self.accel_timer.tick(time.delta());
+    pub fn accelerate(&mut self, delta: std::time::Duration, seconds: f32) {
+        self.accel_timer.tick(delta);
         if self.accel_timer.finished() {
             if self.current_speed + 0.3 <= self.top_speed {
                 self.current_speed = self.current_speed
-                    + (self.top_speed - self.current_speed)
-                        * (time.delta_seconds() * self.acceleration);
+                    + (self.top_speed - self.current_speed) * (seconds * self.acceleration);
             } else {
                 self.current_speed = self.top_speed;
             }
@@ -66,17 +65,20 @@ impl Default for PlayerSpeed {
 }
 
 pub fn set_player_direction(
-    mut player_query: Query<(&mut Movement, &Grounded, &ActionState<PlayerAction>), With<Player>>,
+    mut player_query: Query<
+        (&mut Movement, Option<&Grounded>, &ActionState<PlayerAction>),
+        With<Player>,
+    >,
     camera_query: Query<&Transform, With<MainCamera>>,
 ) {
     let camera_transform = camera_query.single();
-    let (mut movement, grounded, action) = player_query.single_mut();
-
-    if grounded.is_grounded() {
-        movement.0 = get_direction_in_camera_space(camera_transform, action);
-    } else {
-        if movement.is_moving() {
-            movement.0 = Vec3::ZERO;
+    for (mut movement, grounded, action) in &mut player_query {
+        if grounded.is_some() {
+            movement.0 = get_direction_in_camera_space(camera_transform, action);
+        } else {
+            if movement.is_moving() {
+                movement.0 = Vec3::ZERO;
+            }
         }
     }
 }
@@ -120,41 +122,37 @@ pub fn get_direction_in_camera_space(
 
 pub fn rotate_to_direction(
     time: Res<Time>,
-    mut query: Query<(&mut Transform, &Movement, &Grounded, Option<&Landing>), With<Player>>,
+    mut query: Query<(&mut Transform, &Movement, Option<&Landing>), (With<Player>, With<Grounded>)>,
     mut rotation_target: Local<Transform>,
 ) {
-    let (mut transform, direction, grounded, is_landing) = query.single_mut();
-
-    rotation_target.translation = transform.translation;
-    let cur_position = rotation_target.translation;
-    let flat_velo_direction = Vec3::new(direction.0.x, 0.0, direction.0.z).normalize_or_zero();
-    if flat_velo_direction != Vec3::ZERO && grounded.is_grounded() {
-        rotation_target.look_at(cur_position + flat_velo_direction, Vec3::Y);
-        let turn_speed = if is_landing.is_some() {
-            PLAYER_ROTATION_SPEED * 2.0
-        } else {
-            PLAYER_ROTATION_SPEED
-        };
-        transform.rotation = transform
-            .rotation
-            .slerp(rotation_target.rotation, time.delta_seconds() * turn_speed);
+    for (mut transform, direction, is_landing) in &mut query {
+        rotation_target.translation = transform.translation;
+        let cur_position = rotation_target.translation;
+        let flat_velo_direction = Vec3::new(direction.0.x, 0.0, direction.0.z).normalize_or_zero();
+        if flat_velo_direction != Vec3::ZERO {
+            rotation_target.look_at(cur_position + flat_velo_direction, Vec3::Y);
+            let turn_speed = if is_landing.is_some() {
+                PLAYER_ROTATION_SPEED * 2.0
+            } else {
+                PLAYER_ROTATION_SPEED
+            };
+            transform.rotation = transform
+                .rotation
+                .slerp(rotation_target.rotation, time.delta_seconds() * turn_speed);
+        }
     }
 }
 
 pub fn handle_player_acceleration(
     time: Res<Time>,
     mut player_speed: ResMut<PlayerSpeed>,
-    mut query: Query<(&mut Momentum, &Movement, &Grounded), With<Player>>,
+    mut query: Query<(&mut Momentum, &Movement), (With<Player>, With<Grounded>)>,
 ) {
-    let (mut momentum, movement, grounded) = query.single_mut();
-
-    if movement.is_moving() {
-        if grounded.is_grounded() {
-            player_speed.accelerate(time);
+    for (mut momentum, movement) in &mut query {
+        if movement.is_moving() {
+            player_speed.accelerate(time.delta(), time.delta_seconds());
             momentum.set(player_speed.current_speed);
-        }
-    } else {
-        if grounded.is_grounded() {
+        } else {
             momentum.reset();
             player_speed.reset();
         }
@@ -170,30 +168,30 @@ pub fn apply_momentum(
         Option<&OutsideForce>,
     )>,
 ) {
-    let (mut velocity, transform, momentum, drift, has_force) = query.single_mut();
+    for (mut velocity, transform, momentum, drift, has_force) in &mut query {
+        let mut speed_to_apply = Vec3::ZERO;
+        let mut should_change_velocity: bool = false;
 
-    let mut speed_to_apply = Vec3::ZERO;
-    let mut should_change_velocity: bool = false;
+        if let Some(outside_force) = has_force {
+            should_change_velocity = true;
+            speed_to_apply.x += outside_force.0.x;
+            speed_to_apply.z += outside_force.0.z;
+        }
 
-    if let Some(outside_force) = has_force {
-        should_change_velocity = true;
-        speed_to_apply.x += outside_force.0.x;
-        speed_to_apply.z += outside_force.0.z;
-    }
+        if momentum.has_momentum() {
+            should_change_velocity = true;
+            let forward = transform.forward();
+            speed_to_apply += forward * momentum.get();
+        }
 
-    if momentum.has_momentum() {
-        should_change_velocity = true;
-        let forward = transform.forward();
-        speed_to_apply += forward * momentum.get();
-    }
+        if drift.has_drift() {
+            should_change_velocity = true;
+            speed_to_apply += drift.0;
+        }
 
-    if drift.has_drift() {
-        should_change_velocity = true;
-        speed_to_apply += drift.0;
-    }
-
-    if should_change_velocity {
-        velocity.linvel.x = speed_to_apply.x;
-        velocity.linvel.z = speed_to_apply.z;
+        if should_change_velocity {
+            velocity.linvel.x = speed_to_apply.x;
+            velocity.linvel.z = speed_to_apply.z;
+        }
     }
 }
