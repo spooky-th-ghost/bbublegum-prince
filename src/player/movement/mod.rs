@@ -45,6 +45,23 @@ impl Landing {
     }
 }
 
+// #[derive(Component)]
+// pub struct WallLockout(Timer);
+
+// impl WallLockout {
+//     pub fn new() -> Self {
+//         WallLockout(Timer::from_seconds(0.15, TimerMode::Once))
+//     }
+
+//     pub fn tick(&mut self, duration: Duration) {
+//         self.0.tick(duration);
+//     }
+
+//     pub fn finished(&self) -> bool {
+//         self.0.finished()
+//     }
+// }
+
 pub struct PlayerMovementPlugin;
 
 impl Plugin for PlayerMovementPlugin {
@@ -77,3 +94,16 @@ pub fn handle_landing(
         }
     }
 }
+
+// pub fn handle_wall_lockout(
+//     mut commands: Commands,
+//     time: Res<Time>,
+//     mut query: Query<(Entity, &mut Landing)>,
+// )
+//     for (entity, mut landing) in &mut query {
+//         landing.tick(time.delta());
+//         if landing.finished() {
+//             commands.entity(entity).remove::<Landing>();
+//         }
+//     }
+// }

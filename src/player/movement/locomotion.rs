@@ -11,7 +11,7 @@ impl Plugin for PlayerLocomotionPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(set_player_direction)
             .add_system(handle_player_acceleration.after(set_player_direction))
-            .add_system(rotate_to_direction.after(set_player_direction))
+            .add_system(rotate_to_direction.after(handle_player_acceleration))
             .add_system(apply_momentum.after(rotate_to_direction));
     }
 }

@@ -19,7 +19,7 @@ impl Plugin for PlayerJumpingPlugin {
             .add_system(handle_jumping.after(buffer_jump))
             .add_system(detect_walls)
             .add_system(handle_wall_jumping.before(apply_momentum))
-            .add_system(aerial_drift)
+            .add_system(aerial_drift.before(apply_momentum))
             .add_system(reset_jumps_after_landing)
             .add_system(handle_jump_buffer);
     }
@@ -288,6 +288,7 @@ pub fn handle_jumping(mut query: Query<(&mut Velocity, &mut Grounded, &mut Jump)
         if let Some(force) = jump.get_jump_force() {
             grounded.jump();
             velocity.linvel.y = force;
+            println!("Executing normal jump");
         }
     }
 }
@@ -358,8 +359,7 @@ pub fn detect_walls(
                         solid,
                         filter,
                     ) {
-                        velocity.linvel.x = 0.0;
-                        velocity.linvel.z = 0.0;
+                        println!("Entering wall slide");
                         grounded.state = GroundedState::WallSliding(intersection.normal);
                         friction.coefficient = 0.0;
                     }
@@ -410,6 +410,8 @@ pub fn handle_wall_jumping(
             transform.look_at(position + wall_normal, Vec3::Y);
             momentum.set(jump.get_wall_jump_force());
             velocity.linvel = Vec3::Y * jump.get_wall_jump_force();
+            println!("Executing wall jump");
+            println!("Momentum: {:?}", momentum.get());
             grounded.state = GroundedState::Rising;
         }
     }

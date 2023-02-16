@@ -1,12 +1,21 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
+pub mod pickup;
+pub use pickup::*;
+
 pub mod player;
 use leafwing_input_manager::prelude::InputManagerPlugin;
 pub use player::*;
 
 pub mod camera;
 pub use camera::*;
+
+#[derive(SystemLabel)]
+pub enum SysLabel {
+    SetForces,
+    AddForces,
+}
 
 fn main() {
     App::new()
