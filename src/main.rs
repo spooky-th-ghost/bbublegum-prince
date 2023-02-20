@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
+pub mod environment;
+pub use environment::*;
+
 pub mod pickup;
 pub use pickup::*;
 
@@ -79,6 +82,9 @@ pub struct Rot;
 pub struct Wall;
 
 #[derive(Component)]
+pub struct Ledge;
+
+#[derive(Component)]
 pub struct WindZone(pub Vec3);
 
 impl WindZone {
@@ -137,6 +143,7 @@ pub fn spawn_world(
             coefficient: 1.0,
             combine_rule: CoefficientCombineRule::Min,
         })
+        .insert(GravityScale(1.0))
         .insert(Player)
         .with_children(|parent| {
             parent.spawn(PbrBundle {
@@ -150,6 +157,16 @@ pub fn spawn_world(
                 .spawn(TransformBundle::default())
                 .insert(Collider::cylinder(0.1, 0.75))
                 .insert(PlayerWallSensor)
+                .insert(Sensor)
+                .insert(ActiveEvents::COLLISION_EVENTS);
+
+            parent
+                .spawn(TransformBundle {
+                    local: Transform::from_xyz(0.0, 1.0, 0.0),
+                    ..default()
+                })
+                .insert(Collider::cylinder(0.1, 0.5))
+                .insert(PlayerLedgeSensor)
                 .insert(Sensor)
                 .insert(ActiveEvents::COLLISION_EVENTS);
         });
@@ -219,12 +236,36 @@ pub fn spawn_world(
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 5.0, 5.0))),
             material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_xyz(-5.0, 3.5, -5.0),
+            transform: Transform::from_xyz(0.0, 2.5, 0.0),
             ..default()
         })
         .insert(Collider::cuboid(2.5, 2.5, 2.5))
         .insert(Wall)
-        .insert(RigidBody::Fixed);
+        .insert(RigidBody::Fixed)
+        .with_children(|parent| {
+            parent
+                .spawn(TransformBundle {
+                    local: Transform::from_xyz(0.0, 2.25, 0.0),
+                    ..default()
+                })
+                .insert(Ledge)
+                .insert(Collider::cuboid(2.6, 0.25, 2.6))
+                .insert(RigidBody::Fixed)
+                .insert(Sensor);
+        });
+
+    //Debug Ledge
+    let mut ledge_transform = Transform::from_xyz(10.0, 5.0, 0.0);
+    ledge_transform.rotate_axis(Vec3::Y, 45.0);
+    commands
+        .spawn(SpatialBundle {
+            transform: ledge_transform,
+            ..default()
+        })
+        .insert(Ledge)
+        .insert(Collider::cuboid(1.0, 0.5, 1.0))
+        .insert(RigidBody::Fixed)
+        .insert(Sensor);
 
     // Wall jump blocks
     commands

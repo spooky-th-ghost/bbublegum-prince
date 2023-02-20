@@ -11,6 +11,8 @@ pub enum PlayerAction {
     Jump,
     CameraLeft,
     CameraRight,
+    ClimbLedge,
+    DropLedge,
 }
 
 #[derive(Bundle)]
@@ -23,7 +25,7 @@ impl InputListenerBundle {
     pub fn input_map() -> InputListenerBundle {
         use PlayerAction::*;
 
-        let mut input_map = input_map::InputMap::new([
+        let input_map = input_map::InputMap::new([
             (KeyCode::W, Up),
             (KeyCode::S, Down),
             (KeyCode::A, Left),
@@ -31,6 +33,8 @@ impl InputListenerBundle {
             (KeyCode::Space, Jump),
             (KeyCode::Q, CameraLeft),
             (KeyCode::E, CameraRight),
+            (KeyCode::Space, ClimbLedge),
+            (KeyCode::X, DropLedge),
         ])
         .build();
 

@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::fmt::Formatter;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -106,8 +105,14 @@ pub struct Grounded;
 #[derive(Component, Default)]
 pub struct Walljump(pub Vec3);
 
+#[derive(Component, Default)]
+pub struct LedgeGrab(pub Vec3);
+
 #[derive(Component)]
 pub struct PlayerWallSensor;
+
+#[derive(Component)]
+pub struct PlayerLedgeSensor;
 
 #[derive(Component, Default)]
 pub struct Drift(pub Vec3);

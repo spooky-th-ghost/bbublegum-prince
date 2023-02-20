@@ -3,8 +3,9 @@ use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
-    apply_momentum, get_direction_in_camera_space, Coyote, Drift, Grounded, Jump, Landing,
-    MainCamera, Momentum, Player, PlayerAction, PlayerWallSensor, Wall, Walljump,
+    apply_momentum, get_direction_in_camera_space, Coyote, Drift, Grounded, Jump, Landing, Ledge,
+    LedgeGrab, MainCamera, Momentum, Player, PlayerAction, PlayerLedgeSensor, PlayerWallSensor,
+    Wall, Walljump,
 };
 
 pub struct PlayerJumpingPlugin;
@@ -16,8 +17,10 @@ impl Plugin for PlayerJumpingPlugin {
             .add_system(buffer_jump)
             .add_system(handle_jumping.after(buffer_jump))
             .add_system(detect_walls)
+            .add_system(detect_ledges)
             .add_system(handle_wall_jumping.before(apply_momentum))
             .add_system(aerial_drift.before(apply_momentum))
+            .add_system(handle_ledge_grab.before(apply_momentum))
             .add_system(reset_jumps_after_landing)
             .add_system(handle_jump_buffer);
     }
@@ -31,7 +34,10 @@ pub fn handle_jump_buffer(time: Res<Time>, mut query: Query<&mut Jump>) {
 
 pub fn aerial_drift(
     time: Res<Time>,
-    mut query: Query<(&mut Drift, &ActionState<PlayerAction>), (With<Player>, Without<Grounded>)>,
+    mut query: Query<
+        (&mut Drift, &ActionState<PlayerAction>),
+        (With<Player>, Without<Grounded>, Without<LedgeGrab>),
+    >,
 
     camera_query: Query<&Transform, With<MainCamera>>,
 ) {
@@ -224,6 +230,131 @@ pub fn handle_wall_jumping(
             momentum.set(jump.get_wall_jump_force());
             velocity.linvel = Vec3::Y * jump.get_wall_jump_force();
             commands.entity(entity).remove::<Walljump>();
+        }
+    }
+}
+
+enum LedgeDetectionStatus {
+    Hit(Entity),
+    NoHit,
+}
+
+pub fn detect_ledges(
+    mut commands: Commands,
+    mut collision_events: EventReader<CollisionEvent>,
+    rapier_context: Res<RapierContext>,
+    mut player_query: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Velocity,
+            &mut GravityScale,
+            Option<&LedgeGrab>,
+            Option<&Walljump>,
+        ),
+        (
+            With<Player>,
+            Without<Grounded>,
+            Without<PlayerLedgeSensor>,
+            Without<Wall>,
+        ),
+    >,
+    ledge_sensor_query: Query<Entity, (With<PlayerLedgeSensor>, Without<Player>, Without<Wall>)>,
+    ledge_query: Query<(Entity, &Transform), With<Ledge>>,
+) {
+    let sensor_entity = ledge_sensor_query.single();
+    for (
+        player_entity,
+        player_transform,
+        mut player_velocity,
+        mut player_gravity,
+        ledgegrab,
+        walljump,
+    ) in &mut player_query
+    {
+        for collision_event in collision_events.iter() {
+            match collision_event {
+                CollisionEvent::Started(e1, e2, _) => {
+                    let ledge_detection_status =
+                        if *e1 == sensor_entity && ledge_query.contains(*e2) && ledgegrab.is_none()
+                        {
+                            LedgeDetectionStatus::Hit(*e2)
+                        } else if *e2 == sensor_entity
+                            && ledge_query.contains(*e1)
+                            && ledgegrab.is_none()
+                        {
+                            LedgeDetectionStatus::Hit(*e1)
+                        } else {
+                            LedgeDetectionStatus::NoHit
+                        };
+
+                    if let LedgeDetectionStatus::Hit(ledge) = ledge_detection_status {
+                        println!("Hit a ledge");
+                        let (_, ledge_transform) = ledge_query.get(ledge).unwrap();
+                        let mut ray_pos = player_transform.translation;
+                        ray_pos.y = ledge_transform.translation.y;
+                        let ray_dir =
+                            (ledge_transform.translation - ray_pos.clone()).normalize_or_zero();
+                        println!("Ray Origin: {:?}\nRay Direction: {:?}", ray_pos, ray_dir);
+                        let max_distance = ray_pos.distance(ledge_transform.translation);
+                        let solid = true;
+                        let filter = QueryFilter::new().exclude_collider(player_entity);
+
+                        if let Some((_, intersection)) = rapier_context.cast_ray_and_get_normal(
+                            ray_pos,
+                            ray_dir,
+                            max_distance,
+                            solid,
+                            filter,
+                        ) {
+                            println!("Found the ledge");
+                            player_velocity.linvel = Vec3::ZERO;
+                            player_gravity.0 = 0.0;
+                            commands
+                                .entity(player_entity)
+                                .insert(LedgeGrab(intersection.normal * -1.0));
+
+                            if walljump.is_some() {
+                                commands.entity(player_entity).remove::<Walljump>();
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+}
+
+pub fn handle_ledge_grab(
+    mut commands: Commands,
+    mut query: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut GravityScale,
+            &ActionState<PlayerAction>,
+            &LedgeGrab,
+        ),
+        With<Player>,
+    >,
+) {
+    for (entity, mut transform, mut gravity_scale, action, ledgegrab) in &mut query {
+        if action.just_pressed(PlayerAction::DropLedge) {
+            println!("Dropping from ledge");
+        }
+
+        if action.just_pressed(PlayerAction::ClimbLedge) {
+            println!("Climbing a ledge");
+            let new_position = transform.translation + (ledgegrab.0 * 1.5) + (Vec3::Y * 1.8);
+            transform.translation = new_position;
+        }
+
+        if action.just_pressed(PlayerAction::DropLedge)
+            || action.just_pressed(PlayerAction::ClimbLedge)
+        {
+            commands.entity(entity).remove::<LedgeGrab>();
+            gravity_scale.0 = 1.0;
         }
     }
 }

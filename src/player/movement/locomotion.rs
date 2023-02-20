@@ -1,5 +1,6 @@
 use crate::{
-    Drift, Grounded, Landing, MainCamera, Momentum, Movement, OutsideForce, Player, PlayerAction,
+    Drift, Grounded, Landing, LedgeGrab, MainCamera, Momentum, Movement, OutsideForce, Player,
+    PlayerAction,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -160,13 +161,16 @@ pub fn handle_player_acceleration(
 }
 
 pub fn apply_momentum(
-    mut query: Query<(
-        &mut Velocity,
-        &Transform,
-        &Momentum,
-        &Drift,
-        Option<&OutsideForce>,
-    )>,
+    mut query: Query<
+        (
+            &mut Velocity,
+            &Transform,
+            &Momentum,
+            &Drift,
+            Option<&OutsideForce>,
+        ),
+        Without<LedgeGrab>,
+    >,
 ) {
     for (mut velocity, transform, momentum, drift, has_force) in &mut query {
         let mut speed_to_apply = Vec3::ZERO;
