@@ -22,6 +22,7 @@ impl Plugin for PlayerJumpingPlugin {
             .add_system(aerial_drift.before(apply_momentum))
             .add_system(handle_ledge_grab.before(apply_momentum))
             .add_system(reset_jumps_after_landing)
+            .add_system(add_friction_when_landing)
             .add_system(handle_jump_buffer);
     }
 }
@@ -340,21 +341,27 @@ pub fn handle_ledge_grab(
     >,
 ) {
     for (entity, mut transform, mut gravity_scale, action, ledgegrab) in &mut query {
-        if action.just_pressed(PlayerAction::DropLedge) {
+        if action.just_pressed(PlayerAction::Grab) {
             println!("Dropping from ledge");
         }
 
-        if action.just_pressed(PlayerAction::ClimbLedge) {
+        if action.just_pressed(PlayerAction::Jump) {
             println!("Climbing a ledge");
             let new_position = transform.translation + (ledgegrab.0 * 1.5) + (Vec3::Y * 1.8);
             transform.translation = new_position;
         }
 
-        if action.just_pressed(PlayerAction::DropLedge)
-            || action.just_pressed(PlayerAction::ClimbLedge)
-        {
+        if action.just_pressed(PlayerAction::Grab) || action.just_pressed(PlayerAction::Jump) {
             commands.entity(entity).remove::<LedgeGrab>();
             gravity_scale.0 = 1.0;
         }
+    }
+}
+
+pub fn add_friction_when_landing(
+    mut player_query: Query<&mut Friction, (With<Player>, Added<Grounded>)>,
+) {
+    for mut friction in &mut player_query {
+        friction.coefficient = 1.0;
     }
 }

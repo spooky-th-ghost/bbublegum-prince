@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::InputManagerPlugin;
 
 pub mod environment;
 pub use environment::*;
@@ -8,11 +9,16 @@ pub mod pickup;
 pub use pickup::*;
 
 pub mod player;
-use leafwing_input_manager::prelude::InputManagerPlugin;
 pub use player::*;
 
 pub mod camera;
 pub use camera::*;
+
+pub mod items;
+pub use items::*;
+
+#[derive(Component)]
+pub struct PlayerGrabSensor;
 
 #[derive(SystemLabel)]
 pub enum SysLabel {
@@ -160,6 +166,44 @@ pub fn spawn_world(
                 .insert(Sensor)
                 .insert(ActiveEvents::COLLISION_EVENTS);
 
+            // Hand Sensor Verts
+            let vertices = vec![
+                Vec3::new(0.0, -0.1, 0.0),
+                Vec3::new(1.25, -0.1, 0.0),
+                Vec3::new(1.00, -0.1, -1.00),
+                Vec3::new(0.0, -0.1, -1.25),
+                Vec3::new(-1.00, -0.1, -1.00),
+                Vec3::new(-1.25, -0.1, 0.0),
+                Vec3::new(0.0, 0.1, 0.0),
+                Vec3::new(1.25, 0.1, 0.0),
+                Vec3::new(1.00, 0.1, -1.00),
+                Vec3::new(0.0, 0.1, -1.25),
+                Vec3::new(-1.00, 0.1, -1.00),
+                Vec3::new(-1.25, 0.1, 0.0),
+            ];
+
+            let indices = vec![
+                [0, 1, 6],
+                [1, 7, 6],
+                [1, 2, 7],
+                [2, 8, 7],
+                [2, 3, 8],
+                [3, 9, 8],
+                [3, 4, 9],
+                [4, 10, 9],
+                [4, 5, 10],
+                [5, 11, 10],
+                [5, 0, 11],
+                [6, 11, 0],
+            ];
+
+            parent
+                .spawn(TransformBundle::default())
+                .insert(Collider::trimesh(vertices, indices))
+                .insert(PlayerGrabSensor)
+                .insert(Sensor)
+                .insert(ActiveEvents::COLLISION_EVENTS);
+
             parent
                 .spawn(TransformBundle {
                     local: Transform::from_xyz(0.0, 1.0, 0.0),
@@ -231,6 +275,7 @@ pub fn spawn_world(
         .insert(Collider::cuboid(0.5, 25.0, 25.0))
         .insert(Wall)
         .insert(RigidBody::Fixed);
+    //
     // Block
     commands
         .spawn(PbrBundle {
@@ -253,6 +298,20 @@ pub fn spawn_world(
                 .insert(RigidBody::Fixed)
                 .insert(Sensor);
         });
+
+    // Crate
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 1.0, 1.0))),
+            material: materials.add(Color::BEIGE.into()),
+            transform: Transform::from_xyz(15.0, 2.5, 15.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(0.5, 0.5, 0.5))
+        .insert(Item::default())
+        .insert(MediumItem)
+        .insert(RigidBody::Dynamic)
+        .insert(Velocity::default());
 
     //Debug Ledge
     let mut ledge_transform = Transform::from_xyz(10.0, 5.0, 0.0);

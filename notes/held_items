@@ -1,0 +1,6 @@
+Heavy, light, and medium, item components
+Item component that basically just contains the item_id
+
+when a player picks the item up they gain 2 components HeldItem, and an Item weight component
+
+these seperate weight components can be used to filter movement systems that are restricted and affected by the weight a character can hold

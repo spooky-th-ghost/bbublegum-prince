@@ -9,10 +9,9 @@ pub enum PlayerAction {
     Left,
     Right,
     Jump,
+    Grab,
     CameraLeft,
     CameraRight,
-    ClimbLedge,
-    DropLedge,
 }
 
 #[derive(Bundle)]
@@ -33,8 +32,7 @@ impl InputListenerBundle {
             (KeyCode::Space, Jump),
             (KeyCode::Q, CameraLeft),
             (KeyCode::E, CameraRight),
-            (KeyCode::Space, ClimbLedge),
-            (KeyCode::X, DropLedge),
+            (KeyCode::X, Grab),
         ])
         .build();
 
