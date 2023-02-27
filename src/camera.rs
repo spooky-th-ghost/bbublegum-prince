@@ -165,24 +165,14 @@ fn lerp_to_camera_position(
     }
 }
 
-fn rotate_camera(
-    time: Res<Time>,
-    keyboard: Res<Input<KeyCode>>,
-    player_query: Query<&Movement>,
-    mut camera_query: Query<&mut CameraController>,
-) {
+fn rotate_camera(keyboard: Res<Input<KeyCode>>, mut camera_query: Query<&mut CameraController>) {
     let mut camera = camera_query.single_mut();
-    let movement = player_query.single();
 
-    // if movement.0.x != 0.0 {
-    //     camera.angle += movement.0.x * 10.0 * time.delta_seconds();
-    // }
-
-    if keyboard.pressed(KeyCode::Q) {
-        camera.angle -= 45.0 * time.delta_seconds();
+    if keyboard.just_pressed(KeyCode::Q) {
+        camera.angle -= 45.0;
     }
-    if keyboard.pressed(KeyCode::E) {
-        camera.angle += 45.0 * time.delta_seconds();
+    if keyboard.just_pressed(KeyCode::E) {
+        camera.angle += 45.0;
     }
 
     if camera.angle > 360.0 {
