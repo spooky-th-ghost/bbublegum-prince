@@ -1,6 +1,6 @@
 pub use bevy::prelude::*;
 
-#[derive(PartialEq, Default)]
+#[derive(PartialEq, Clone, Copy, Default)]
 pub enum ItemId {
     #[default]
     WoodenCrate,
@@ -22,7 +22,7 @@ pub enum Weight {
     Heavy,
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Clone, Copy, Default)]
 pub struct Item {
     pub item_id: ItemId,
 }

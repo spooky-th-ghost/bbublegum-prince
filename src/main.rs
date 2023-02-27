@@ -304,7 +304,7 @@ pub fn spawn_world(
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 1.0, 1.0))),
             material: materials.add(Color::BEIGE.into()),
-            transform: Transform::from_xyz(15.0, 2.5, 15.0),
+            transform: Transform::from_xyz(0.0, 10.0, 0.0),
             ..default()
         })
         .insert(Collider::cuboid(0.5, 0.5, 0.5))
