@@ -128,7 +128,7 @@ pub fn spawn_world(
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Capsule::default())),
             material: materials.add(Color::TURQUOISE.into()),
-            transform: Transform::from_xyz(-5.0, 30.0, -5.0),
+            transform: Transform::from_xyz(-1.0, 30.0, 0.0),
             ..default()
         })
         .insert(RigidBody::Dynamic)
@@ -168,18 +168,18 @@ pub fn spawn_world(
 
             // Hand Sensor Verts
             let vertices = vec![
-                Vec3::new(0.0, -0.1, 0.0),
-                Vec3::new(1.25, -0.1, 0.0),
-                Vec3::new(1.00, -0.1, -1.00),
-                Vec3::new(0.0, -0.1, -1.25),
-                Vec3::new(-1.00, -0.1, -1.00),
-                Vec3::new(-1.25, -0.1, 0.0),
-                Vec3::new(0.0, 0.1, 0.0),
-                Vec3::new(1.25, 0.1, 0.0),
-                Vec3::new(1.00, 0.1, -1.00),
-                Vec3::new(0.0, 0.1, -1.25),
-                Vec3::new(-1.00, 0.1, -1.00),
-                Vec3::new(-1.25, 0.1, 0.0),
+                Vec3::new(0.0, -0.5, 0.0),
+                Vec3::new(1.25, -0.5, 0.0),
+                Vec3::new(1.00, -0.5, -1.00),
+                Vec3::new(0.0, -0.5, -1.25),
+                Vec3::new(-1.00, -0.5, -1.00),
+                Vec3::new(-1.25, -0.5, 0.0),
+                Vec3::new(0.0, 0.5, 0.0),
+                Vec3::new(1.25, 0.5, 0.0),
+                Vec3::new(1.00, 0.5, -1.00),
+                Vec3::new(0.0, 0.5, -1.25),
+                Vec3::new(-1.00, 0.5, -1.00),
+                Vec3::new(-1.25, 0.5, 0.0),
             ];
 
             let indices = vec![

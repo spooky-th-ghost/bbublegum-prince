@@ -4,6 +4,7 @@ use crate::{
 use bevy::{prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
+use std::convert::From;
 
 pub struct PlayerGrabbingPlugin;
 
@@ -75,6 +76,21 @@ impl HeldItem {
 enum ItemDetectionStatus {
     Hit(Entity),
     NoHit,
+}
+
+#[derive(Component)]
+pub struct ThrownItem {
+    pub throw_velocity: Vec3,
+    pub throw_position: Vec3,
+}
+
+impl ThrownItem {
+    pub fn new(throw_velocity: Vec3, throw_position: Vec3) -> Self {
+        ThrownItem {
+            throw_velocity,
+            throw_position,
+        }
+    }
 }
 
 pub fn detect_items(
@@ -169,13 +185,14 @@ pub fn grab_item(
                         .add_child(item_entity)
                         .insert(HeldItem::new(item.item_id, item_entity));
                     item_transform.rotation = Quat::default();
-                    item_transform.translation = Vec3::Y * 1.5;
+                    item_transform.translation = Vec3::new(0.0, 1.00, -1.00);
                     if item_rigidbody.is_some() {
                         commands
                             .entity(item_entity)
                             .remove::<RigidBody>()
-                            .remove::<Velocity>()
-                            .insert(Sensor);
+                            .remove::<Collider>();
+                        // .insert(LockedAxes::TRANSLATION_LOCKED | LockedAxes::ROTATION_LOCKED)
+                        // .insert(Sensor);
                     }
                 } else {
                     println!("Something went wrong while holding an item");
@@ -185,69 +202,43 @@ pub fn grab_item(
     }
 }
 
-#[derive(Component)]
-pub struct ThrownVelo(pub Vec3);
-
 pub fn throw_item(
     mut commands: Commands,
-    player_query: Query<
-        (
-            Entity,
-            &HeldItem,
-            &Transform,
-            &ActionState<PlayerAction>,
-            Option<&HeavyItem>,
-            Option<&MediumItem>,
-            Option<&LightItem>,
-        ),
-        With<Player>,
-    >,
+    player_query: Query<(Entity, &HeldItem, &Transform, &ActionState<PlayerAction>), With<Player>>,
 ) {
-    for (player_entity, held_item, player_transform, player_action, heavy, medium, light) in
-        &player_query
-    {
+    for (player_entity, held_item, player_transform, player_action) in &player_query {
         if player_action.just_pressed(PlayerAction::Grab) {
             let HeldItem {
                 entity: item_entity,
-                item: _,
+                item: item_id,
             } = held_item;
             let player_forward = player_transform.forward().normalize_or_zero();
             let throw_velocity = (player_forward * 15.0) + (Vec3::Y * 10.0);
+            let throw_position = player_transform.translation + (player_forward * 1.2);
+
             commands
                 .entity(*item_entity)
                 .remove_parent()
-                .insert(ThrownVelo(throw_velocity));
+                .insert(ThrownItem::new(throw_velocity, throw_position))
+                .insert(RigidBody::Dynamic)
+                //This line should be based on the item
+                .insert(item_id.into_collider());
 
             commands.entity(player_entity).remove::<HeldItem>();
-
-            if heavy.is_some() {
-                commands.entity(player_entity).remove::<HeavyItem>();
-            }
-            if medium.is_some() {
-                commands.entity(player_entity).remove::<MediumItem>();
-            }
-            if light.is_some() {
-                commands.entity(player_entity).remove::<LightItem>();
-            }
         }
-
-        // Need to add an action to crouch that will also drop items
     }
 }
 
 pub fn handle_thrown_momentum(
     mut commands: Commands,
-    item_query: Query<(Entity, &ThrownVelo, &Item), Added<ThrownVelo>>,
+    mut item_query: Query<(Entity, &ThrownItem, &mut Velocity, &mut Transform), (With<RigidBody>)>,
 ) {
-    for (item_entity, thrown_velo, item) in &item_query {
-        commands
-            .entity(item_entity)
-            .insert(Velocity {
-                linvel: thrown_velo.0,
-                ..default()
-            })
-            .insert(RigidBody::Dynamic)
-            .remove::<Sensor>()
-            .remove::<ThrownVelo>();
+    for (item_entity, thrown_item, mut item_velocity, mut item_transform) in &mut item_query {
+        commands.entity(item_entity).remove::<ThrownItem>();
+
+        println!("Item Velo: {:?}", thrown_item.throw_velocity);
+        item_velocity.linvel = thrown_item.throw_velocity;
+        println!("Item Position: {:?}", thrown_item.throw_position);
+        item_transform.translation = thrown_item.throw_position;
     }
 }
