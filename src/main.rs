@@ -311,6 +311,7 @@ pub fn spawn_world(
         .insert(Item::default())
         .insert(MediumItem)
         .insert(RigidBody::Dynamic)
+        .insert(LockedAxes::ROTATION_LOCKED_Y)
         .insert(Velocity::default());
 
     //Debug Ledge

@@ -4,7 +4,6 @@ use crate::{
 use bevy::{prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
-use std::convert::From;
 
 pub struct PlayerGrabbingPlugin;
 
@@ -191,8 +190,6 @@ pub fn grab_item(
                             .entity(item_entity)
                             .remove::<RigidBody>()
                             .remove::<Collider>();
-                        // .insert(LockedAxes::TRANSLATION_LOCKED | LockedAxes::ROTATION_LOCKED)
-                        // .insert(Sensor);
                     }
                 } else {
                     println!("Something went wrong while holding an item");
@@ -204,16 +201,28 @@ pub fn grab_item(
 
 pub fn throw_item(
     mut commands: Commands,
-    player_query: Query<(Entity, &HeldItem, &Transform, &ActionState<PlayerAction>), With<Player>>,
+    player_query: Query<
+        (
+            Entity,
+            &HeldItem,
+            &Transform,
+            &Velocity,
+            &ActionState<PlayerAction>,
+        ),
+        With<Player>,
+    >,
 ) {
-    for (player_entity, held_item, player_transform, player_action) in &player_query {
+    for (player_entity, held_item, player_transform, player_velocity, player_action) in
+        &player_query
+    {
         if player_action.just_pressed(PlayerAction::Grab) {
             let HeldItem {
                 entity: item_entity,
                 item: item_id,
             } = held_item;
             let player_forward = player_transform.forward().normalize_or_zero();
-            let throw_velocity = (player_forward * 15.0) + (Vec3::Y * 10.0);
+            let throw_velocity =
+                (player_forward * 15.0) + (Vec3::Y * 10.0) + player_velocity.linvel;
             let throw_position = player_transform.translation + (player_forward * 1.2);
 
             commands
@@ -221,7 +230,6 @@ pub fn throw_item(
                 .remove_parent()
                 .insert(ThrownItem::new(throw_velocity, throw_position))
                 .insert(RigidBody::Dynamic)
-                //This line should be based on the item
                 .insert(item_id.into_collider());
 
             commands.entity(player_entity).remove::<HeldItem>();
@@ -231,7 +239,7 @@ pub fn throw_item(
 
 pub fn handle_thrown_momentum(
     mut commands: Commands,
-    mut item_query: Query<(Entity, &ThrownItem, &mut Velocity, &mut Transform), (With<RigidBody>)>,
+    mut item_query: Query<(Entity, &ThrownItem, &mut Velocity, &mut Transform), With<RigidBody>>,
 ) {
     for (item_entity, thrown_item, mut item_velocity, mut item_transform) in &mut item_query {
         commands.entity(item_entity).remove::<ThrownItem>();

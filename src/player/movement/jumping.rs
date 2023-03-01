@@ -211,7 +211,6 @@ pub fn detect_walls(
 
 pub fn handle_wall_jumping(
     mut commands: Commands,
-    input: Res<Input<KeyCode>>,
     mut query: Query<
         (
             Entity,
@@ -220,12 +219,15 @@ pub fn handle_wall_jumping(
             &mut Momentum,
             &mut Jump,
             &Walljump,
+            &ActionState<PlayerAction>,
         ),
         With<Player>,
     >,
 ) {
-    for (entity, mut transform, mut velocity, mut momentum, mut jump, walljump) in &mut query {
-        if input.just_pressed(KeyCode::Space) {
+    for (entity, mut transform, mut velocity, mut momentum, mut jump, walljump, action) in
+        &mut query
+    {
+        if action.just_pressed(PlayerAction::Jump) {
             let position = transform.translation;
             transform.look_at(position + walljump.0, Vec3::Y);
             momentum.set(jump.get_wall_jump_force());

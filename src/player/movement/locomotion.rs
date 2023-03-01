@@ -115,6 +115,12 @@ pub fn get_direction_in_camera_space(
         x -= 1.0;
     }
 
+    if action.pressed(PlayerAction::Move) {
+        let axis_pair = action.clamped_axis_pair(PlayerAction::Move).unwrap();
+        x = axis_pair.x();
+        z = axis_pair.y();
+    }
+
     let right_vec: Vec3 = x * right;
     let forward_vec: Vec3 = z * forward;
 

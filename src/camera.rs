@@ -1,6 +1,7 @@
-use crate::{Momentum, Movement, Player};
+use crate::{Momentum, Movement, Player, PlayerAction};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
 
 #[derive(Component)]
 pub struct MainCamera;
@@ -86,11 +87,12 @@ impl Plugin for CameraControlPlugin {
 }
 
 fn debug_change_camera_mode(
-    input: Res<Input<KeyCode>>,
     mut camera_query: Query<&mut CameraController>,
+    player_query: Query<&ActionState<PlayerAction>>,
 ) {
     let mut camera = camera_query.single_mut();
-    if input.just_pressed(KeyCode::Z) {
+    let Ok(player_action) = player_query.get_single() else {println!("No Player to set camera mode"); return;};
+    if player_action.just_pressed(PlayerAction::CameraMode) {
         if let CameraMode::Normal = camera.mode {
             camera.mode = CameraMode::Fixed {
                 position: Vec3::new(0.0, 30.0, -20.0),
@@ -165,13 +167,16 @@ fn lerp_to_camera_position(
     }
 }
 
-fn rotate_camera(keyboard: Res<Input<KeyCode>>, mut camera_query: Query<&mut CameraController>) {
+fn rotate_camera(
+    mut camera_query: Query<&mut CameraController>,
+    player_query: Query<&ActionState<PlayerAction>>,
+) {
     let mut camera = camera_query.single_mut();
-
-    if keyboard.just_pressed(KeyCode::Q) {
+    let Ok(player_action) = player_query.get_single() else {println!("No Player to rotate the camera"); return;};
+    if player_action.just_pressed(PlayerAction::CameraLeft) {
         camera.angle -= 45.0;
     }
-    if keyboard.just_pressed(KeyCode::E) {
+    if player_action.just_pressed(PlayerAction::CameraRight) {
         camera.angle += 45.0;
     }
 
