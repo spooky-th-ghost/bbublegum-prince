@@ -53,10 +53,19 @@ pub fn aerial_drift(
 
 pub fn handle_grounded(
     mut commands: Commands,
-    mut query: Query<(Entity, &Transform, &mut Drift, Option<&Grounded>), With<Player>>,
+    mut query: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Drift,
+            Option<&Grounded>,
+            Option<&Walljump>,
+        ),
+        With<Player>,
+    >,
     rapier_context: Res<RapierContext>,
 ) {
-    for (entity, transform, mut drift, grounded) in &mut query {
+    for (entity, transform, mut drift, grounded, walljump) in &mut query {
         let is_grounded = grounded.is_some();
         let ray_pos = transform.translation;
         let ray_dir = Vec3::Y * -1.0;
@@ -73,6 +82,10 @@ pub fn handle_grounded(
                     .entity(entity)
                     .insert(Grounded)
                     .insert(Landing::new());
+
+                if walljump.is_some() {
+                    commands.entity(entity).remove::<Walljump>();
+                }
             }
         } else {
             if is_grounded {

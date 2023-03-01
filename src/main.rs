@@ -17,6 +17,9 @@ pub use camera::*;
 pub mod items;
 pub use items::*;
 
+pub mod ideas;
+pub use ideas::*;
+
 #[derive(Component)]
 pub struct PlayerGrabSensor;
 
