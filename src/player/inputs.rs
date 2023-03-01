@@ -14,6 +14,7 @@ pub enum PlayerAction {
     CameraRight,
     CameraMode,
     Move,
+    Crouch,
 }
 
 #[derive(Bundle)]
@@ -36,6 +37,7 @@ impl InputListenerBundle {
             (KeyCode::E, CameraRight),
             (KeyCode::Z, CameraMode),
             (KeyCode::X, Grab),
+            (KeyCode::R, Crouch),
         ])
         //DEBUG THIS IS ALL DEBUG, DONT HARDCODE A GAMEPAD ID
         .set_gamepad(Gamepad { id: 1 })
@@ -49,6 +51,7 @@ impl InputListenerBundle {
                 (GamepadButtonType::DPadRight, Right),
                 (GamepadButtonType::South, Jump),
                 (GamepadButtonType::West, Grab),
+                (GamepadButtonType::RightTrigger, Crouch),
                 (GamepadButtonType::RightTrigger2, CameraRight),
                 (GamepadButtonType::LeftTrigger2, CameraLeft),
                 (GamepadButtonType::Select, CameraMode),
