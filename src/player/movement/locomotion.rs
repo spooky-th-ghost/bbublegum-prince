@@ -1,6 +1,6 @@
 use crate::{
-    Drift, Grounded, Landing, LedgeGrab, MainCamera, Momentum, Movement, OutsideForce, Player,
-    PlayerAction,
+    DebugBall, Drift, Grounded, Landing, LedgeGrab, MainCamera, Momentum, Movement, OutsideForce,
+    Player, PlayerAction,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -134,15 +134,17 @@ pub fn rotate_to_direction(
 ) {
     for (mut transform, direction, is_landing) in &mut query {
         rotation_target.translation = transform.translation;
-        let cur_position = rotation_target.translation;
         let flat_velo_direction = Vec3::new(direction.0.x, 0.0, direction.0.z).normalize_or_zero();
         if flat_velo_direction != Vec3::ZERO {
-            rotation_target.look_at(cur_position + flat_velo_direction, Vec3::Y);
+            let target_position = rotation_target.translation + flat_velo_direction;
+
+            rotation_target.look_at(target_position, Vec3::Y);
             let turn_speed = if is_landing.is_some() {
                 PLAYER_ROTATION_SPEED * 2.0
             } else {
                 PLAYER_ROTATION_SPEED
             };
+
             transform.rotation = transform
                 .rotation
                 .slerp(rotation_target.rotation, time.delta_seconds() * turn_speed);

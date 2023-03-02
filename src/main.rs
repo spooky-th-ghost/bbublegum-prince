@@ -102,6 +102,9 @@ impl WindZone {
     }
 }
 
+#[derive(Component)]
+pub struct DebugBall;
+
 #[derive(Default, Component, Reflect)]
 #[reflect(Component)]
 pub struct OutsideForce(pub Vec3);
@@ -155,13 +158,6 @@ pub fn spawn_world(
         .insert(GravityScale(1.0))
         .insert(Player)
         .with_children(|parent| {
-            parent.spawn(PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Box::new(0.5, 0.5, 0.5))),
-                material: materials.add(Color::RED.into()),
-                transform: Transform::from_xyz(0.0, 0.5, -0.5),
-                ..default()
-            });
-
             parent
                 .spawn(TransformBundle::default())
                 .insert(Collider::cylinder(0.1, 0.75))
@@ -172,34 +168,25 @@ pub fn spawn_world(
             // Hand Sensor Verts
             let vertices = vec![
                 Vec3::new(0.0, -0.5, 0.0),
-                Vec3::new(1.25, -0.5, 0.0),
                 Vec3::new(1.00, -0.5, -1.00),
                 Vec3::new(0.0, -0.5, -1.25),
                 Vec3::new(-1.00, -0.5, -1.00),
-                Vec3::new(-1.25, -0.5, 0.0),
                 Vec3::new(0.0, 0.5, 0.0),
-                Vec3::new(1.25, 0.5, 0.0),
                 Vec3::new(1.00, 0.5, -1.00),
                 Vec3::new(0.0, 0.5, -1.25),
                 Vec3::new(-1.00, 0.5, -1.00),
-                Vec3::new(-1.25, 0.5, 0.0),
             ];
 
             let indices = vec![
-                [0, 1, 6],
-                [1, 7, 6],
-                [1, 2, 7],
-                [2, 8, 7],
-                [2, 3, 8],
-                [3, 9, 8],
-                [3, 4, 9],
-                [4, 10, 9],
-                [4, 5, 10],
-                [5, 11, 10],
-                [5, 0, 11],
-                [6, 11, 0],
+                [0, 1, 4],
+                [1, 5, 4],
+                [1, 2, 5],
+                [2, 6, 5],
+                [2, 3, 6],
+                [3, 7, 6],
+                [3, 0, 7],
+                [0, 4, 7],
             ];
-
             parent
                 .spawn(TransformBundle::default())
                 .insert(Collider::trimesh(vertices, indices))
@@ -223,6 +210,19 @@ pub fn spawn_world(
         color: Color::ANTIQUE_WHITE,
         brightness: 0.45,
     });
+
+    //Debug Ball
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Icosphere {
+                radius: 0.25,
+                subdivisions: 2,
+            })),
+            material: materials.add(Color::RED.into()),
+            transform: Transform::from_xyz(0.0, -1.0, 0.0),
+            ..default()
+        })
+        .insert(DebugBall);
 
     // Ground
     commands

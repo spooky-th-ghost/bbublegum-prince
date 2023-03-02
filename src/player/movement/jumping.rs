@@ -262,7 +262,7 @@ pub fn detect_ledges(
     mut player_query: Query<
         (
             Entity,
-            &Transform,
+            &mut Transform,
             &mut Velocity,
             &mut GravityScale,
             Option<&LedgeGrab>,
@@ -275,13 +275,13 @@ pub fn detect_ledges(
             Without<Wall>,
         ),
     >,
-    ledge_sensor_query: Query<Entity, (With<PlayerLedgeSensor>, Without<Player>, Without<Wall>)>,
-    ledge_query: Query<(Entity, &Transform), With<Ledge>>,
+    ledge_sensor_query: Query<Entity, (With<PlayerLedgeSensor>, Without<Player>)>,
+    ledge_query: Query<(Entity, &Transform), (With<Ledge>, Without<Player>)>,
 ) {
     let sensor_entity = ledge_sensor_query.single();
     for (
         player_entity,
-        player_transform,
+        mut player_transform,
         mut player_velocity,
         mut player_gravity,
         ledgegrab,
@@ -305,7 +305,6 @@ pub fn detect_ledges(
                         };
 
                     if let LedgeDetectionStatus::Hit(ledge) = ledge_detection_status {
-                        println!("Hit a ledge");
                         let (_, ledge_transform) = ledge_query.get(ledge).unwrap();
                         let mut ray_pos = player_transform.translation;
                         ray_pos.y = ledge_transform.translation.y;
@@ -323,9 +322,11 @@ pub fn detect_ledges(
                             solid,
                             filter,
                         ) {
-                            println!("Found the ledge");
+                            let mut look_target = ray_pos - intersection.normal;
+                            look_target.y = player_transform.translation.y;
                             player_velocity.linvel = Vec3::ZERO;
                             player_gravity.0 = 0.0;
+                            player_transform.look_at(look_target, Vec3::Y);
                             commands
                                 .entity(player_entity)
                                 .insert(LedgeGrab(intersection.normal * -1.0));
