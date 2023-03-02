@@ -11,28 +11,34 @@ pub struct PlayerLocomotionPlugin;
 impl Plugin for PlayerLocomotionPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(set_player_direction)
-            .add_system(handle_player_acceleration.after(set_player_direction))
-            .add_system(rotate_to_direction.after(handle_player_acceleration))
+            .add_system(handle_player_speed.after(set_player_direction))
+            .add_system(rotate_to_direction.after(handle_player_speed))
             .add_system(apply_momentum.after(rotate_to_direction));
     }
 }
 
 const PLAYER_ROTATION_SPEED: f32 = 10.0;
 
+#[derive(Component)]
+pub struct Crouching;
+
 #[derive(Resource)]
 pub struct PlayerSpeed {
     accel_timer: Timer,
+    decel_timer: Timer,
     base_speed: f32,
+    crawl_speed: f32,
     current_speed: f32,
     top_speed: f32,
-    min_speed: f32,
     acceleration: f32,
+    deceleration: f32,
 }
 
 impl PlayerSpeed {
     pub fn reset(&mut self) {
         self.current_speed = self.base_speed;
         self.accel_timer.reset();
+        self.decel_timer.reset();
     }
 
     pub fn accelerate(&mut self, delta: std::time::Duration, seconds: f32) {
@@ -47,6 +53,16 @@ impl PlayerSpeed {
         }
     }
 
+    pub fn decelerate(&mut self, delta: std::time::Duration, seconds: f32) {
+        self.decel_timer.tick(delta);
+        if self.decel_timer.finished() {
+            if self.current_speed - 0.3 >= self.crawl_speed {
+                self.current_speed = self.current_speed
+                    + (self.crawl_speed - self.current_speed) * (seconds * self.deceleration);
+            }
+        }
+    }
+
     pub fn current(&self) -> f32 {
         self.current_speed
     }
@@ -56,11 +72,13 @@ impl Default for PlayerSpeed {
     fn default() -> Self {
         PlayerSpeed {
             accel_timer: Timer::from_seconds(1.5, TimerMode::Once),
+            decel_timer: Timer::from_seconds(0.5, TimerMode::Once),
             base_speed: 7.5,
+            crawl_speed: 4.0,
             current_speed: 7.5,
             top_speed: 15.0,
-            min_speed: -20.0,
             acceleration: 2.0,
+            deceleration: 2.0,
         }
     }
 }
@@ -152,14 +170,21 @@ pub fn rotate_to_direction(
     }
 }
 
-pub fn handle_player_acceleration(
+pub fn handle_player_speed(
     time: Res<Time>,
     mut player_speed: ResMut<PlayerSpeed>,
-    mut query: Query<(&mut Momentum, &Movement), (With<Player>, With<Grounded>)>,
+    mut query: Query<
+        (&mut Momentum, &Movement, &ActionState<PlayerAction>),
+        (With<Player>, With<Grounded>, Without<Crouching>),
+    >,
 ) {
-    for (mut momentum, movement) in &mut query {
+    for (mut momentum, movement, action) in &mut query {
         if movement.is_moving() {
-            player_speed.accelerate(time.delta(), time.delta_seconds());
+            if action.pressed(PlayerAction::Crouch) {
+                player_speed.decelerate(time.delta(), time.delta_seconds());
+            } else {
+                player_speed.accelerate(time.delta(), time.delta_seconds());
+            }
             momentum.set(player_speed.current_speed);
         } else {
             momentum.reset();
