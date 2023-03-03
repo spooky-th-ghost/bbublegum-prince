@@ -3,9 +3,9 @@ use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
-    apply_momentum, get_direction_in_camera_space, Coyote, Drift, Grounded, Jump, Landing, Ledge,
-    LedgeGrab, MainCamera, Momentum, Player, PlayerAction, PlayerLedgeSensor, PlayerWallSensor,
-    Wall, Walljump,
+    apply_momentum, get_direction_in_camera_space, Coyote, Crouching, Drift, Grounded, Jump,
+    Landing, Ledge, LedgeGrab, MainCamera, Momentum, Player, PlayerAction, PlayerLedgeSensor,
+    PlayerSpeed, PlayerWallSensor, Wall, Walljump,
 };
 
 pub struct PlayerJumpingPlugin;
@@ -23,7 +23,8 @@ impl Plugin for PlayerJumpingPlugin {
             .add_system(handle_ledge_grab.before(apply_momentum))
             .add_system(reset_jumps_after_landing)
             .add_system(add_friction_when_landing)
-            .add_system(handle_jump_buffer);
+            .add_system(handle_jump_buffer)
+            .add_system(handle_long_jump);
     }
 }
 
@@ -379,5 +380,23 @@ pub fn add_friction_when_landing(
 ) {
     for mut friction in &mut player_query {
         friction.coefficient = 1.0;
+    }
+}
+
+pub fn handle_long_jump(
+    mut player_speed: ResMut<PlayerSpeed>,
+    mut player_query: Query<
+        (&mut Momentum, &mut Velocity, &ActionState<PlayerAction>),
+        (With<Player>, With<Grounded>, Without<Crouching>),
+    >,
+) {
+    for (mut momentum, mut velocity, action) in &mut player_query {
+        if action.just_pressed(PlayerAction::Jump) && action.pressed(PlayerAction::Crouch) {
+            if player_speed.current() >= 10.0 {
+                player_speed.set(20.0);
+                velocity.linvel.y = 10.0;
+                momentum.set(20.0);
+            }
+        }
     }
 }

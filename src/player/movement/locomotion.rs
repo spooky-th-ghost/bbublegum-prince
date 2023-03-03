@@ -29,6 +29,7 @@ pub struct PlayerSpeed {
     base_speed: f32,
     crawl_speed: f32,
     current_speed: f32,
+    base_top_speed: f32,
     top_speed: f32,
     acceleration: f32,
     deceleration: f32,
@@ -37,6 +38,7 @@ pub struct PlayerSpeed {
 impl PlayerSpeed {
     pub fn reset(&mut self) {
         self.current_speed = self.base_speed;
+        self.top_speed = self.base_top_speed;
         self.accel_timer.reset();
         self.decel_timer.reset();
     }
@@ -66,18 +68,24 @@ impl PlayerSpeed {
     pub fn current(&self) -> f32 {
         self.current_speed
     }
+
+    pub fn set(&mut self, speed: f32) {
+        self.top_speed = speed;
+        self.current_speed = speed;
+    }
 }
 
 impl Default for PlayerSpeed {
     fn default() -> Self {
         PlayerSpeed {
-            accel_timer: Timer::from_seconds(1.5, TimerMode::Once),
+            accel_timer: Timer::from_seconds(0.3, TimerMode::Once),
             decel_timer: Timer::from_seconds(0.5, TimerMode::Once),
             base_speed: 7.5,
             crawl_speed: 4.0,
             current_speed: 7.5,
             top_speed: 15.0,
-            acceleration: 2.0,
+            base_top_speed: 15.0,
+            acceleration: 1.0,
             deceleration: 2.0,
         }
     }
