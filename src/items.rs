@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 #[derive(PartialEq, Clone, Copy, Default)]
@@ -8,6 +8,17 @@ pub enum ItemId {
 }
 
 impl ItemId {
+    pub fn held_position(&self) -> Vec3 {
+        use ItemId::*;
+        match *self {
+            WoodenCrate => Vec3::new(0.0, 1.5, -1.65),
+        }
+    }
+
+    pub fn held_rotation(&self) -> Quat {
+        Quat::default()
+    }
+
     pub fn get_weight(&self) -> Weight {
         use ItemId::*;
         use Weight::*;
@@ -18,7 +29,7 @@ impl ItemId {
 
     pub fn into_collider(&self) -> Collider {
         match self {
-            ItemId::WoodenCrate => Collider::cuboid(0.5, 0.5, 0.5),
+            ItemId::WoodenCrate => Collider::cuboid(1.0, 1.0, 1.0),
         }
     }
 }

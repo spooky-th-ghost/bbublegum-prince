@@ -50,6 +50,20 @@ fn main() {
         .run();
 }
 
+pub enum CollisionLayer {
+    Normal,
+    IgnorePlayer,
+}
+
+impl Into<bevy_rapier3d::geometry::Group> for CollisionLayer {
+    fn into(self) -> bevy_rapier3d::geometry::Group {
+        match self {
+            Normal => bevy_rapier3d::geometry::Group::GROUP_1,
+            IgnorePlayer => bevy_rapier3d::geometry::Group::GROUP_2,
+        }
+    }
+}
+
 #[derive(Component, Default)]
 pub struct Movement(pub Vec3);
 
@@ -119,6 +133,7 @@ pub fn spawn_world(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     commands
         .spawn(Camera3dBundle {
@@ -228,7 +243,12 @@ pub fn spawn_world(
     commands
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(50.0, 1.0, 50.0))),
-            material: materials.add(Color::GREEN.into()),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(asset_server.load("grass.png")),
+                alpha_mode: AlphaMode::Blend,
+                unlit: true,
+                ..default()
+            }),
             transform: Transform::from_xyz(0.0, -1.0, 0.0),
             ..default()
         })
@@ -305,30 +325,17 @@ pub fn spawn_world(
     // Crate
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(1.0, 1.0, 1.0))),
+            mesh: meshes.add(Mesh::from(shape::Box::new(2.0, 2.0, 2.0))),
             material: materials.add(Color::BEIGE.into()),
             transform: Transform::from_xyz(0.0, 10.0, 0.0),
             ..default()
         })
-        .insert(Collider::cuboid(0.5, 0.5, 0.5))
+        .insert(Collider::cuboid(1.0, 1.0, 1.0))
         .insert(Item::default())
         .insert(MediumItem)
         .insert(RigidBody::Dynamic)
         .insert(LockedAxes::ROTATION_LOCKED_Y)
         .insert(Velocity::default());
-
-    //Debug Ledge
-    let mut ledge_transform = Transform::from_xyz(10.0, 5.0, 0.0);
-    ledge_transform.rotate_axis(Vec3::Y, 45.0);
-    commands
-        .spawn(SpatialBundle {
-            transform: ledge_transform,
-            ..default()
-        })
-        .insert(Ledge)
-        .insert(Collider::cuboid(1.0, 0.5, 1.0))
-        .insert(RigidBody::Fixed)
-        .insert(Sensor);
 
     // Wall jump blocks
     commands

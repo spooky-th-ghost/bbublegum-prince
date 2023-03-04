@@ -183,13 +183,13 @@ pub fn grab_item(
                         .entity(player_entity)
                         .add_child(item_entity)
                         .insert(HeldItem::new(item.item_id, item_entity));
-                    item_transform.rotation = Quat::default();
-                    item_transform.translation = Vec3::new(0.0, 1.00, -1.00);
+                    item_transform.rotation = item.item_id.held_rotation();
+                    item_transform.translation = item.item_id.held_position();
                     if item_rigidbody.is_some() {
                         commands
                             .entity(item_entity)
                             .remove::<RigidBody>()
-                            .remove::<Collider>();
+                            .insert(RigidBody::Fixed);
                     }
                 } else {
                     println!("Something went wrong while holding an item");
@@ -229,8 +229,8 @@ pub fn throw_item(
                 .entity(*item_entity)
                 .remove_parent()
                 .insert(ThrownItem::new(throw_velocity, throw_position))
-                .insert(RigidBody::Dynamic)
-                .insert(item_id.into_collider());
+                .remove::<RigidBody>()
+                .insert(RigidBody::Dynamic);
 
             commands.entity(player_entity).remove::<HeldItem>();
         }
