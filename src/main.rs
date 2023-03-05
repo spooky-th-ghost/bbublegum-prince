@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use kayak_ui::prelude::{widgets::*, *};
 use leafwing_input_manager::prelude::InputManagerPlugin;
 
 pub mod environment;
@@ -29,9 +30,35 @@ pub enum SysLabel {
     AddForces,
 }
 
+fn ui_startup(
+    mut commands: Commands,
+    mut font_mapping: ResMut<FontMapping>,
+    asset_server: Res<AssetServer>,
+) {
+    font_mapping.set_default(asset_server.load("roboto.kayak_font"));
+
+    let mut widget_context = KayakRootContext::new();
+    widget_context.add_plugin(KayakWidgetsContextPlugin);
+    let parent_id = None;
+
+    rsx! {
+        <KayakAppBundle>
+            <TextWidgetBundle
+                text={TextProps {
+                    content: "Let's fucking paint!".into(),
+                    ..Default::default()
+                }}
+
+            />
+        </KayakAppBundle>
+    };
+
+    commands.spawn(UICameraBundle::new(widget_context));
+}
+
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugin(bevy_editor_pls::prelude::EditorPlugin)
         .add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
@@ -46,6 +73,9 @@ fn main() {
         })
         .insert_resource(PlayerSpeed::default())
         .add_startup_system(spawn_world)
+        .add_plugin(KayakContextPlugin)
+        .add_plugin(KayakWidgets)
+        .add_startup_system(ui_startup)
         .add_system(rotate_block)
         .run();
 }

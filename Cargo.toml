@@ -18,3 +18,4 @@ bevy_rapier3d = "*"
 bevy-inspector-egui-rapier = { version = "*", features=["rapier3d"]}
 leafwing-input-manager = "*"
 paste = "1.0.11"
+kayak_ui = "0.2.0"

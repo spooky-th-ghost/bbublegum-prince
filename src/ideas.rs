@@ -1,9 +1,18 @@
 use bevy::prelude::*;
 
+pub struct IdeaPlugin;
+
+impl Plugin for IdeaPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(PlayerIdeas::with_ideas(vec![Idea::Cube, Idea::Spring]));
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct PlayerIdeas {
     pub ideas: Vec<Idea>,
     pub available_ideas: Vec<Idea>,
+    pub loaded_ideas: Vec<Idea>,
 }
 
 impl PlayerIdeas {
@@ -11,6 +20,7 @@ impl PlayerIdeas {
         PlayerIdeas {
             available_ideas: ideas.clone(),
             ideas,
+            loaded_ideas: Vec::new(),
         }
     }
 
