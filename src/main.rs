@@ -59,6 +59,8 @@ fn ui_startup(
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugin(KayakContextPlugin)
+        .add_plugin(KayakWidgets)
         .add_plugin(bevy_editor_pls::prelude::EditorPlugin)
         .add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
@@ -73,8 +75,6 @@ fn main() {
         })
         .insert_resource(PlayerSpeed::default())
         .add_startup_system(spawn_world)
-        .add_plugin(KayakContextPlugin)
-        .add_plugin(KayakWidgets)
         .add_startup_system(ui_startup)
         .add_system(rotate_block)
         .run();
@@ -165,15 +165,6 @@ pub fn spawn_world(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    commands
-        .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::splat(10.0))
-                .looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        })
-        .insert(CameraController::default())
-        .insert(MainCamera);
-
     // Player
     commands
         .spawn(PbrBundle {
@@ -255,19 +246,6 @@ pub fn spawn_world(
         color: Color::ANTIQUE_WHITE,
         brightness: 0.45,
     });
-
-    //Debug Ball
-    commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Icosphere {
-                radius: 0.25,
-                subdivisions: 2,
-            })),
-            material: materials.add(Color::RED.into()),
-            transform: Transform::from_xyz(0.0, -1.0, 0.0),
-            ..default()
-        })
-        .insert(DebugBall);
 
     // Ground
     commands
@@ -364,7 +342,7 @@ pub fn spawn_world(
         .insert(Item::default())
         .insert(MediumItem)
         .insert(RigidBody::Dynamic)
-        .insert(LockedAxes::ROTATION_LOCKED_Y)
+        .insert(LockedAxes::ROTATION_LOCKED_X | LockedAxes::ROTATION_LOCKED_Z)
         .insert(Velocity::default());
 
     // Wall jump blocks

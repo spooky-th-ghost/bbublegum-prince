@@ -1,10 +1,16 @@
 use crate::{Momentum, Movement, Player, PlayerAction};
-use bevy::prelude::*;
+use bevy::{core_pipeline::clear_color::ClearColorConfig, prelude::*};
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 #[derive(Component)]
 pub struct MainCamera;
+
+#[derive(Component)]
+pub struct UiCamera;
+
+#[derive(Component)]
+pub struct IdeaUi;
 
 pub enum CameraMode {
     Normal,
@@ -74,16 +80,85 @@ impl Default for CameraController {
         }
     }
 }
+pub fn circle_distribution(initial_index: usize, distance: f32, total: f32) -> Transform {
+    let i = initial_index as f32;
+    let theta = 2.0 * (std::f32::consts::PI / total) * i;
+    Transform::from_xyz(theta.cos() * distance, theta.sin() * distance, 0.0)
+}
 
 pub struct CameraControlPlugin;
 
 impl Plugin for CameraControlPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(update_camera_target_position)
+        app.add_startup_system(spawn_camera)
+            .add_system(update_camera_target_position)
             .add_system(lerp_to_camera_position.after(update_camera_target_position))
             .add_system(rotate_camera)
             .add_system(debug_change_camera_mode);
     }
+}
+fn spawn_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+) {
+    commands
+        .spawn(Camera3dBundle {
+            transform: Transform::from_translation(Vec3::splat(10.0))
+                .looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        })
+        .insert(CameraController::default())
+        .insert(MainCamera);
+
+    commands
+        .spawn(Camera3dBundle {
+            camera_3d: Camera3d {
+                clear_color: ClearColorConfig::None,
+                ..default()
+            },
+            camera: Camera {
+                priority: 1,
+                ..default()
+            },
+            transform: Transform::from_translation(Vec3::new(0.0, 500.0, 0.0)),
+            ..default()
+        })
+        .insert(UiCamera);
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Icosphere {
+                radius: 0.25,
+                subdivisions: 2,
+            })),
+            material: materials.add(
+                Color::Rgba {
+                    red: 1.0,
+                    green: 0.0,
+                    blue: 0.0,
+                    alpha: 0.5,
+                }
+                .into(),
+            ),
+            transform: Transform::from_xyz(0.0, 500.0, -3.0),
+            ..default()
+        })
+        .insert(IdeaUi)
+        .with_children(|parent| {
+            for i in 0..10 {
+                parent.spawn(PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Icosphere {
+                        radius: 0.25,
+                        subdivisions: 2,
+                    })),
+                    material: materials.add(Color::BLUE.into()),
+                    transform: circle_distribution(i, 1.2, 10.0),
+                    ..default()
+                });
+            }
+        });
 }
 
 fn debug_change_camera_mode(
