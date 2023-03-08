@@ -90,19 +90,15 @@ pub struct CameraControlPlugin;
 
 impl Plugin for CameraControlPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(spawn_camera)
+        app.add_startup_system(spawn_main_camera)
+            .add_startup_system(spawn_ui_camera)
             .add_system(update_camera_target_position)
             .add_system(lerp_to_camera_position.after(update_camera_target_position))
             .add_system(rotate_camera)
             .add_system(debug_change_camera_mode);
     }
 }
-fn spawn_camera(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
+fn spawn_main_camera(mut commands: Commands) {
     commands
         .spawn(Camera3dBundle {
             transform: Transform::from_translation(Vec3::splat(10.0))
@@ -111,7 +107,13 @@ fn spawn_camera(
         })
         .insert(CameraController::default())
         .insert(MainCamera);
+}
 
+pub fn spawn_ui_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     commands
         .spawn(Camera3dBundle {
             camera_3d: Camera3d {
@@ -128,20 +130,7 @@ fn spawn_camera(
         .insert(UiCamera);
 
     commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Icosphere {
-                radius: 0.25,
-                subdivisions: 2,
-            })),
-            material: materials.add(
-                Color::Rgba {
-                    red: 1.0,
-                    green: 0.0,
-                    blue: 0.0,
-                    alpha: 0.5,
-                }
-                .into(),
-            ),
+        .spawn(SpatialBundle {
             transform: Transform::from_xyz(0.0, 500.0, -3.0),
             ..default()
         })
@@ -153,8 +142,16 @@ fn spawn_camera(
                         radius: 0.25,
                         subdivisions: 2,
                     })),
-                    material: materials.add(Color::BLUE.into()),
-                    transform: circle_distribution(i, 1.2, 10.0),
+                    material: materials.add(
+                        Color::Rgba {
+                            red: 1.0,
+                            green: 0.0,
+                            blue: 0.0,
+                            alpha: 0.5,
+                        }
+                        .into(),
+                    ),
+                    transform: circle_distribution(i, 0.85, 10.0),
                     ..default()
                 });
             }
