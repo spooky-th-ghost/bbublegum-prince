@@ -6,17 +6,6 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-pub struct PlayerLocomotionPlugin;
-
-impl Plugin for PlayerLocomotionPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system(set_player_direction)
-            .add_system(handle_player_speed.after(set_player_direction))
-            .add_system(rotate_to_direction.after(handle_player_speed))
-            .add_system(apply_momentum.after(rotate_to_direction));
-    }
-}
-
 const PLAYER_ROTATION_SPEED: f32 = 10.0;
 
 #[derive(Component)]

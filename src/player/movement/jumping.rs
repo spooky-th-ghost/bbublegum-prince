@@ -8,26 +8,6 @@ use crate::{
     PlayerSpeed, PlayerWallSensor, Wall, Walljump,
 };
 
-pub struct PlayerJumpingPlugin;
-
-impl Plugin for PlayerJumpingPlugin {
-    fn build(&self, app: &mut App) {
-        app.register_type::<Jump>()
-            .add_system(handle_grounded)
-            .add_system(buffer_jump)
-            .add_system(handle_jumping.after(buffer_jump))
-            .add_system(detect_walls)
-            .add_system(detect_ledges)
-            .add_system(handle_wall_jumping.before(apply_momentum))
-            .add_system(aerial_drift.before(apply_momentum))
-            .add_system(handle_ledge_grab.before(apply_momentum))
-            .add_system(reset_jumps_after_landing)
-            .add_system(add_friction_when_landing)
-            .add_system(handle_jump_buffer)
-            .add_system(handle_long_jump);
-    }
-}
-
 pub fn handle_jump_buffer(time: Res<Time>, mut query: Query<&mut Jump>) {
     for mut jump in &mut query {
         jump.update(time.delta());
@@ -232,17 +212,27 @@ pub fn handle_wall_jumping(
             &mut Velocity,
             &mut Momentum,
             &mut Jump,
+            &mut Drift,
             &Walljump,
             &ActionState<PlayerAction>,
         ),
         With<Player>,
     >,
 ) {
-    for (entity, mut transform, mut velocity, mut momentum, mut jump, walljump, action) in
-        &mut query
+    for (
+        entity,
+        mut transform,
+        mut velocity,
+        mut momentum,
+        mut jump,
+        mut drift,
+        walljump,
+        action,
+    ) in &mut query
     {
         if action.just_pressed(PlayerAction::Jump) {
             let position = transform.translation;
+            drift.reset();
             transform.look_at(position + walljump.0, Vec3::Y);
             momentum.set(jump.get_wall_jump_force());
             velocity.linvel = Vec3::Y * jump.get_wall_jump_force();

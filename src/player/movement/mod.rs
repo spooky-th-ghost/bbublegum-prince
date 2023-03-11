@@ -11,6 +11,47 @@ pub use locomotion::*;
 pub mod jumping;
 pub use jumping::*;
 
+pub struct PlayerMovementPlugin;
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+enum PlayerPhysicsSet {
+    SetForces,
+    ApplyForces,
+    Cleanup,
+}
+
+impl Plugin for PlayerMovementPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_system(apply_momentum.in_set(PlayerPhysicsSet::ApplyForces))
+            .add_system(handle_self_removing_components.in_set(PlayerPhysicsSet::Cleanup))
+            .add_systems(
+                (
+                    set_player_direction,
+                    handle_player_speed,
+                    rotate_to_direction,
+                )
+                    .chain()
+                    .in_set(PlayerPhysicsSet::SetForces),
+            )
+            .add_systems((buffer_jump, handle_jumping).chain())
+            .add_systems(
+                (
+                    handle_grounded,
+                    detect_walls,
+                    detect_ledges,
+                    handle_wall_jumping,
+                    aerial_drift,
+                    handle_ledge_grab,
+                    reset_jumps_after_landing,
+                    add_friction_when_landing,
+                    handle_jump_buffer,
+                    handle_long_jump,
+                )
+                    .in_set(PlayerPhysicsSet::SetForces),
+            );
+    }
+}
+
 #[derive(Component)]
 pub struct Player;
 
@@ -45,16 +86,6 @@ impl Landing {
 
     pub fn finished(&self) -> bool {
         self.0.finished()
-    }
-}
-
-pub struct PlayerMovementPlugin;
-
-impl Plugin for PlayerMovementPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugin(PlayerLocomotionPlugin)
-            .add_plugin(PlayerJumpingPlugin)
-            .add_system(handle_self_removing_components);
     }
 }
 
