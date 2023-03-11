@@ -91,11 +91,8 @@ pub struct CameraControlPlugin;
 impl Plugin for CameraControlPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(spawn_main_camera)
-            .add_startup_system(spawn_ui_camera)
-            .add_system(update_camera_target_position)
-            .add_system(lerp_to_camera_position.after(update_camera_target_position))
-            .add_system(rotate_camera)
-            .add_system(debug_change_camera_mode);
+            .add_systems((update_camera_target_position, lerp_to_camera_position).chain())
+            .add_systems((rotate_camera, debug_change_camera_mode));
     }
 }
 fn spawn_main_camera(mut commands: Commands) {

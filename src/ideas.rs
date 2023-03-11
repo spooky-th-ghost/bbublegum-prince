@@ -13,6 +13,7 @@ pub struct PlayerIdeas {
     pub ideas: Vec<Idea>,
     pub available_ideas: Vec<Idea>,
     pub loaded_ideas: Vec<Idea>,
+    pub current_index: usize,
 }
 
 impl PlayerIdeas {
@@ -21,6 +22,25 @@ impl PlayerIdeas {
             available_ideas: ideas.clone(),
             ideas,
             loaded_ideas: Vec::new(),
+            current_index: 0,
+        }
+    }
+
+    pub fn scroll_forward(&mut self) {
+        let new_index = self.current_index + 1;
+
+        if new_index > self.available_ideas.len() - 1 {
+            self.current_index = 0;
+        } else {
+            self.current_index = new_index;
+        }
+    }
+
+    pub fn scroll_backward(&mut self) {
+        if self.current_index == 0 {
+            self.current_index = self.available_ideas.len() - 1;
+        } else {
+            self.current_index -= 1;
         }
     }
 
@@ -49,6 +69,10 @@ impl PlayerIdeas {
         self.ideas.push(idea);
         self.available_ideas.push(idea);
     }
+
+    pub fn get_current_idea_tag(&self) -> String {
+        self.available_ideas[self.current_index].to_string()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -58,6 +82,19 @@ pub enum Idea {
     Wheel,
     Rope,
 }
+
+impl std::fmt::Display for Idea {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Idea::*;
+        match *self {
+            Cube => write!(f, "Cube"),
+            Spring => write!(f, "Spring"),
+            Wheel => write!(f, "Wheel"),
+            Rope => write!(f, "Rope"),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub enum CreationType {
     Crate,

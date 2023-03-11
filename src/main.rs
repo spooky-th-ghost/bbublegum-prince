@@ -20,6 +20,9 @@ pub use items::*;
 pub mod ideas;
 pub use ideas::*;
 
+pub mod ui;
+pub use ui::*;
+
 #[derive(Component)]
 pub struct PlayerGrabSensor;
 
@@ -38,6 +41,8 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(CameraControlPlugin)
         .add_plugin(PhysiscsInteractablesPlugin)
+        .add_plugin(UiPlugin)
+        .add_plugin(IdeaPlugin)
         .insert_resource(RapierConfiguration {
             gravity: Vec3::Y * -30.0,
             ..default()
