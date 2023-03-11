@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use kayak_ui::prelude::{widgets::*, *};
 use leafwing_input_manager::prelude::InputManagerPlugin;
 
 pub mod environment;
@@ -24,45 +23,15 @@ pub use ideas::*;
 #[derive(Component)]
 pub struct PlayerGrabSensor;
 
-#[derive(SystemLabel)]
+#[derive(SystemSet, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum SysLabel {
     SetForces,
     AddForces,
 }
 
-fn ui_startup(
-    mut commands: Commands,
-    mut font_mapping: ResMut<FontMapping>,
-    asset_server: Res<AssetServer>,
-) {
-    font_mapping.set_default(asset_server.load("roboto.kayak_font"));
-
-    let mut widget_context = KayakRootContext::new();
-    widget_context.add_plugin(KayakWidgetsContextPlugin);
-    let parent_id = None;
-
-    rsx! {
-        <KayakAppBundle>
-            <TextWidgetBundle
-                text={TextProps {
-                    content: "Let's fucking paint!".into(),
-                    ..Default::default()
-                }}
-
-            />
-        </KayakAppBundle>
-    };
-
-    commands.spawn(UICameraBundle::new(widget_context));
-}
-
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        .add_plugin(KayakContextPlugin)
-        .add_plugin(KayakWidgets)
-        .add_plugin(bevy_editor_pls::prelude::EditorPlugin)
-        .add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(InputManagerPlugin::<PlayerAction>::default())
@@ -75,23 +44,8 @@ fn main() {
         })
         .insert_resource(PlayerSpeed::default())
         .add_startup_system(spawn_world)
-        .add_startup_system(ui_startup)
         .add_system(rotate_block)
         .run();
-}
-
-pub enum CollisionLayer {
-    Normal,
-    IgnorePlayer,
-}
-
-impl Into<bevy_rapier3d::geometry::Group> for CollisionLayer {
-    fn into(self) -> bevy_rapier3d::geometry::Group {
-        match self {
-            Normal => bevy_rapier3d::geometry::Group::GROUP_1,
-            IgnorePlayer => bevy_rapier3d::geometry::Group::GROUP_2,
-        }
-    }
 }
 
 #[derive(Component, Default)]

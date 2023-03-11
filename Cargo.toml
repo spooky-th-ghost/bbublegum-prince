@@ -12,10 +12,7 @@ runner = "wasm-server-runner"
 opt-level = 3
 
 [dependencies]
-bevy = "0.9.1"
-bevy_editor_pls = "0.2.0"
-bevy_rapier3d = "*"
-bevy-inspector-egui-rapier = { version = "*", features=["rapier3d"]}
-leafwing-input-manager = "*"
+bevy = "0.10"
+bevy_rapier3d = "0.21.0"
+leafwing-input-manager = "0.9"
 paste = "1.0.11"
-kayak_ui = "0.2.0"

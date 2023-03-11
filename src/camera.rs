@@ -121,7 +121,7 @@ pub fn spawn_ui_camera(
                 ..default()
             },
             camera: Camera {
-                priority: 1,
+                order: 1,
                 ..default()
             },
             transform: Transform::from_translation(Vec3::new(0.0, 500.0, 0.0)),
@@ -138,10 +138,13 @@ pub fn spawn_ui_camera(
         .with_children(|parent| {
             for i in 0..10 {
                 parent.spawn(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Icosphere {
-                        radius: 0.25,
-                        subdivisions: 2,
-                    })),
+                    mesh: meshes.add(Mesh::from(
+                        TryInto::<Mesh>::try_into(shape::Icosphere {
+                            radius: 0.25,
+                            subdivisions: 2,
+                        })
+                        .unwrap(),
+                    )),
                     material: materials.add(
                         Color::Rgba {
                             red: 1.0,
