@@ -1,10 +1,16 @@
 use bevy::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
+
+use crate::PlayerAction;
 
 pub struct IdeaPlugin;
 
 impl Plugin for IdeaPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(PlayerIdeas::with_ideas(vec![Idea::Cube, Idea::Spring]));
+        app.insert_resource(PlayerIdeas::with_ideas(vec![Idea::Cube, Idea::Spring]))
+            .add_system(cycle_ideas)
+            .add_system(load_current_idea)
+            .add_system(unload_ideas);
     }
 }
 
@@ -26,9 +32,16 @@ impl PlayerIdeas {
         }
     }
 
+    pub fn ideas_available(&self) -> bool {
+        self.available_ideas.len() > 0
+    }
+
+    pub fn ideas_loaded(&self) -> bool {
+        self.loaded_ideas.len() > 0
+    }
+
     pub fn scroll_forward(&mut self) {
         let new_index = self.current_index + 1;
-
         if new_index > self.available_ideas.len() - 1 {
             self.current_index = 0;
         } else {
@@ -54,6 +67,24 @@ impl PlayerIdeas {
         }
     }
 
+    pub fn load_idea(&mut self) {
+        if self.ideas_available() {
+            let idea_to_load = self.available_ideas.remove(self.current_index);
+            self.loaded_ideas.push(idea_to_load);
+            if self.available_ideas.len() > 0 {
+                self.scroll_backward();
+            } else {
+                self.current_index = 0;
+            }
+        }
+    }
+
+    pub fn unload_ideas(&mut self) {
+        while self.ideas_loaded() {
+            self.available_ideas.push(self.loaded_ideas.pop().unwrap());
+        }
+    }
+
     pub fn spend_ideas(&mut self, ideas_to_spend: Vec<Idea>) {
         for idea in ideas_to_spend {
             let index = self
@@ -70,8 +101,20 @@ impl PlayerIdeas {
         self.available_ideas.push(idea);
     }
 
-    pub fn get_current_idea_tag(&self) -> String {
-        self.available_ideas[self.current_index].to_string()
+    pub fn get_current_idea_tag(&self) -> Option<String> {
+        if self.available_ideas.len() > 0 {
+            Some(self.available_ideas[self.current_index].to_string())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_loaded_idea_at(&self, index: usize) -> Option<String> {
+        if self.loaded_ideas.len() > index {
+            Some(self.loaded_ideas[index].to_string())
+        } else {
+            None
+        }
     }
 }
 
@@ -130,6 +173,42 @@ impl CreationType {
                 _ => None,
             },
             _ => None,
+        }
+    }
+}
+
+pub fn cycle_ideas(
+    mut player_ideas: ResMut<PlayerIdeas>,
+    query: Query<&ActionState<PlayerAction>>,
+) {
+    for action in &query {
+        if action.just_pressed(PlayerAction::CycleIdeasForward) {
+            player_ideas.scroll_forward();
+        }
+        if action.just_pressed(PlayerAction::CycleIdeasBackward) {
+            player_ideas.scroll_backward();
+        }
+    }
+}
+
+pub fn unload_ideas(
+    mut player_ideas: ResMut<PlayerIdeas>,
+    query: Query<&ActionState<PlayerAction>>,
+) {
+    for action in &query {
+        if action.just_pressed(PlayerAction::UnloadIdeas) {
+            player_ideas.unload_ideas();
+        }
+    }
+}
+
+pub fn load_current_idea(
+    mut player_ideas: ResMut<PlayerIdeas>,
+    query: Query<&ActionState<PlayerAction>>,
+) {
+    for action in &query {
+        if action.just_pressed(PlayerAction::LoadIdea) {
+            player_ideas.load_idea();
         }
     }
 }

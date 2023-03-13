@@ -13,6 +13,10 @@ pub enum PlayerAction {
     CameraLeft,
     CameraRight,
     CameraMode,
+    CycleIdeasForward,
+    CycleIdeasBackward,
+    UnloadIdeas,
+    LoadIdea,
     Move,
     Crouch,
 }
@@ -45,15 +49,15 @@ impl InputListenerBundle {
 
         input_map
             .insert_multiple([
-                (GamepadButtonType::DPadUp, Up),
-                (GamepadButtonType::DPadDown, Down),
-                (GamepadButtonType::DPadLeft, Left),
-                (GamepadButtonType::DPadRight, Right),
                 (GamepadButtonType::South, Jump),
                 (GamepadButtonType::West, Grab),
                 (GamepadButtonType::RightTrigger, Crouch),
                 (GamepadButtonType::RightTrigger2, CameraRight),
                 (GamepadButtonType::LeftTrigger2, CameraLeft),
+                (GamepadButtonType::DPadRight, CycleIdeasForward),
+                (GamepadButtonType::DPadLeft, CycleIdeasBackward),
+                (GamepadButtonType::DPadUp, LoadIdea),
+                (GamepadButtonType::DPadDown, UnloadIdeas),
                 (GamepadButtonType::Select, CameraMode),
             ])
             .insert(DualAxis::left_stick(), Move);
