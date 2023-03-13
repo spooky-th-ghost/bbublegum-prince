@@ -44,12 +44,18 @@ fn handle_loaded_ideas_text(
         for mut text in &mut query {
             if let Some(idea_tag) = player_ideas.get_loaded_idea_at(2) {
                 text.sections[3].value = idea_tag;
+            } else {
+                text.sections[3].value = String::default();
             }
             if let Some(idea_tag) = player_ideas.get_loaded_idea_at(1) {
                 text.sections[2].value = idea_tag;
+            } else {
+                text.sections[2].value = String::default();
             }
             if let Some(idea_tag) = player_ideas.get_loaded_idea_at(0) {
                 text.sections[1].value = idea_tag;
+            } else {
+                text.sections[1].value = String::default();
             }
         }
     }
