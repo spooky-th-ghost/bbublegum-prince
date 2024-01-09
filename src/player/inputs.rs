@@ -44,7 +44,7 @@ impl InputListenerBundle {
             (KeyCode::R, Crouch),
         ])
         //DEBUG THIS IS ALL DEBUG, DONT HARDCODE A GAMEPAD ID
-        .set_gamepad(Gamepad { id: 1 })
+        .set_gamepad(Gamepad { id: 0 })
         .build();
 
         input_map
